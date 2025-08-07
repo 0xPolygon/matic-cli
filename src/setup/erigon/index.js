@@ -26,7 +26,7 @@ export class Erigon {
     this.repositoryName = 'erigon'
     this.repositoryBranch = options.repositoryBranch || 'main'
     this.repositoryUrl =
-      options.repositoryUrl || 'https://github.com/maticnetwork/erigon'
+      options.repositoryUrl || 'https://github.com/erigontech/erigon'
 
     this.genesis = new Genesis(config)
   }

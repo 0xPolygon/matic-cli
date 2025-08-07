@@ -12,8 +12,10 @@ export SERVER_PORT={{ obj.serverPort }}
 # Navigate to the matic contracts directory
 cd {{ obj.contracts.repositoryDir }}
 
+sleep 5
+
 # Loop over accounts and run the stake script for each
 {% for acc in obj.config.accounts %}
-forge script scripts/matic-cli-scripts/stake.s.sol:MaticStake --rpc-url http://localhost:$SERVER_PORT --private-key $PRIVATE_KEY --broadcast --sig "run(address,bytes,uint256,uint256)" {{ acc.address }} {{ acc.pub_key }} 10000000000000000000000 2000000000000000000000
-sleep 10
+forge script scripts/matic-cli-scripts/stake.s.sol:MaticStake --legacy --rpc-url http://localhost:$SERVER_PORT --private-key $PRIVATE_KEY --broadcast --sig "run(address,bytes,uint256,uint256)" {{ acc.address }} {{ acc.pub_key }} 10000000000000000000000 2000000000000000000000
+sleep 5
 {% endfor %}

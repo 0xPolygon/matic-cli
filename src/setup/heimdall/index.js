@@ -25,18 +25,18 @@ export class Heimdall {
     this.repositoryName = this.name
     this.repositoryBranch = options.repositoryBranch || 'develop'
     this.repositoryUrl =
-      options.repositoryUrl || 'https://github.com/maticnetwork/heimdall'
+      options.repositoryUrl || 'https://github.com/0xPolygon/heimdall-v2'
     this.dockerContext =
       options.dockerContext ||
-      'https://github.com/maticnetwork/heimdall.git#develop'
+      'https://github.com/0xPolygon/heimdall-v2.git#develop'
   }
 
   get name() {
-    return 'heimdall'
+    return 'heimdall-v2'
   }
 
   get taskTitle() {
-    return 'Setup heimdall'
+    return 'Setup heimdall-v2'
   }
 
   get validatorKeyFile() {
@@ -72,7 +72,7 @@ export class Heimdall {
   }
 
   get heimdallDataDir() {
-    return path.join(this.config.dataDir, this.name)
+    return path.join(this.config.dataDir, 'heimdall-v2')
   }
 
   get heimdallConfigDir() {
@@ -84,7 +84,11 @@ export class Heimdall {
   }
 
   get heimdallAppConfigFilePath() {
-    return path.join(this.heimdallConfigDir, 'heimdall-config.toml')
+    return path.join(this.heimdallConfigDir, 'app.toml')
+  }
+
+  get heimdallConfigFilePath() {
+    return path.join(this.heimdallConfigDir, 'config.toml')
   }
 
   get heimdallValidatorKeyFilePath() {
@@ -128,7 +132,7 @@ export class Heimdall {
     return execa(
       this.heimdalldCmd,
       [
-        'generate-validatorkey',
+        'generate-validator-key',
         this.config.primaryAccount.privateKey,
         '--home',
         this.heimdallDataDir
@@ -188,6 +192,11 @@ export class Heimdall {
                 /"user":[ ]*".*"/gi,
                 `"user": "${this.config.primaryAccount.address}"`
               )
+              .replace(/"voting_period"\s*:\s*".*"/g, '"voting_period": "60s"')
+              .replace(
+                /"expedited_voting_period"\s*:\s*".*"/g,
+                '"expedited_voting_period": "50s"'
+              )
               .save()
           }
         },
@@ -199,8 +208,8 @@ export class Heimdall {
 
             fileReplacer(this.heimdallGenesisFilePath)
               .replace(
-                /"matic_token_address":[ ]*".*"/gi,
-                `"matic_token_address": "${rootContracts.tokens.MaticToken}"`
+                /"pol_token_address":[ ]*".*"/gi,
+                `"pol_token_address": "${rootContracts.tokens.MaticToken}"`
               )
               .replace(
                 /"staking_manager_address":[ ]*".*"/gi,
@@ -302,7 +311,7 @@ export class Heimdall {
           }
         },
         {
-          title: 'Process heimdall config file',
+          title: 'Process heimdall app config file',
           task: () => {
             fileReplacer(this.heimdallAppConfigFilePath)
               .replace(
@@ -320,6 +329,17 @@ export class Heimdall {
               .replace(
                 /bor_grpc_url[ ]*=[ ]*".*"/gi,
                 'bor_grpc_url = "localhost:3131"'
+              )
+              .save()
+          }
+        },
+        {
+          title: 'Process heimdall config file',
+          task: () => {
+            fileReplacer(this.heimdallConfigFilePath)
+              .replace(
+                /laddr[ ]*=[ ]*"tcp:\/\/127\.0\.0\.1:26657"/gi,
+                'laddr = "tcp://0.0.0.0:26657"'
               )
               .save()
           }

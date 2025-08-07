@@ -1,3 +1,3 @@
 [submodule "tests/rpc-tests/RPC-testdata"]
 	path = tests/rpc-tests/RPC-testdata
-	url = https://github.com/maticnetwork/RPC-testdata
+	url = https://github.com/0xPolygon/RPC-testdata

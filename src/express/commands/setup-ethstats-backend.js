@@ -43,7 +43,7 @@ export async function setupEthstats() {
   await runSshCommand(`${user0}@${host0}`, command, maxRetries)
 
   console.log('📍Cloning ethstats-backend')
-  command = 'git clone https://github.com/maticnetwork/ethstats-backend.git'
+  command = 'git clone https://github.com/0xPolygon/ethstats-backend.git'
   await runSshCommand(`${user0}@${host0}`, command, maxRetries)
 
   console.log('📍Installing ethstats-backend deps')
@@ -51,7 +51,7 @@ export async function setupEthstats() {
   await runSshCommand(`${user0}@${host0}`, command, maxRetries)
 
   console.log('📍Cloning ethstats-frontend')
-  command = 'git clone https://github.com/maticnetwork/reorgs-frontend.git'
+  command = 'git clone https://github.com/0xPolygon/reorgs-frontend.git'
   await runSshCommand(`${user0}@${host0}`, command, maxRetries)
 
   console.log('📍Installing ethstats-frontend deps')

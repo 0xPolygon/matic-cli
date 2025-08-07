@@ -16,6 +16,7 @@ bor server \
   --datadir $BOR_DATA_DIR \
   --port 30303 \
   --bor.heimdall "http://localhost:1317" \
+  --bor.heimdallWS "ws://localhost:26657/websocket" \
   --http --http.addr '0.0.0.0' \
   --ws --ws.addr '0.0.0.0' --ws.port 8546 --ws.api 'eth,txpool,net,web3,bor'\
   --http.vhosts '*' \

@@ -74,7 +74,7 @@ jobs:
           sed -i 's,gcp-key,matic-cli-ci-key,' .env
           sed -i 's,/absolute/path/to/your/,/home/runner/work/matic-cli/matic-cli/matic-cli/gcp/,' .env
           sed -i 's,YOUR_PROJECT_ID,prj-polygonlabs-pos-v1-dev,' .env
-          sed -i 's,MATIC_CLI_BRANCH=master,MATIC_CLI_BRANCH=$GITHUB_HEAD_REF,' .env
+          sed -i "s,MATIC_CLI_BRANCH=master,MATIC_CLI_BRANCH=$GITHUB_HEAD_REF," .env
 
       - name: Get GitHub action runner IP
         id: ip
@@ -130,12 +130,18 @@ jobs:
           ../../bin/express-cli.js --send-state-sync
           timeout 20m ../../bin/express-cli.js --monitor exit
 
+      - name: Run e2e module tests for Heimdall
+        working-directory: matic-cli/deployments/devnet-1
+        run: |
+          timeout 5m ../../bin/express-cli.js --send-auth-bank-tests
+          timeout 10m ../../bin/express-cli.js --send-gov-tests
+
       - name: Run smart contracts events tests
         working-directory: matic-cli/deployments/devnet-1
         run: |
           timeout 5m ../../bin/express-cli.js --send-staked-event 1
           timeout 5m ../../bin/express-cli.js --send-stakeupdate-event 1
-          timeout 5m ../../bin/express-cli.js --send-topupfee-event 1
+          timeout 15m ../../bin/express-cli.js --send-topupfee-event 1
           timeout 15m ../../bin/express-cli.js --send-unstakeinit-event 1
 
       - name: Destroy devnet
@@ -222,7 +228,7 @@ jobs:
           SCRIPT_PRIVATE_KEY=$(jq -r '.[0].priv_key' signer-dump.json)
           cd ../code/pos-contracts
           CONTRACT_ADDRESS=$(jq -r .root.tokens.MaticToken contractAddresses.json)
-          forge script scripts/matic-cli-scripts/Deposit.s.sol:MaticDeposit --rpc-url http://localhost:9545 --private-key $SCRIPT_PRIVATE_KEY --broadcast --sig "run(address,address,uint256)" $SCRIPT_ADDRESS $CONTRACT_ADDRESS 100000000000000000000
+          forge script scripts/matic-cli-scripts/Deposit.s.sol:MaticDeposit --legacy --rpc-url http://localhost:9545 --private-key $SCRIPT_PRIVATE_KEY --broadcast --sig "run(address,address,uint256)" $SCRIPT_ADDRESS $CONTRACT_ADDRESS 100000000000000000000
           cd ../../../..
           timeout 60m bash matic-cli/.github/integration-tests/smoke_test.sh
 
@@ -233,6 +239,7 @@ jobs:
 
       - name: Upload logs
         if: always()
+        continue-on-error: true
         uses: PaloAltoNetworks/upload-secure-artifact@main
         with:
           name: logs_${{ github.run_id }}
@@ -250,6 +257,7 @@ jobs:
 
       - name: Upload code and chain data
         if: always()
+        continue-on-error: true
         uses: PaloAltoNetworks/upload-secure-artifact@main
         with:
           name: code_${{ github.run_id }}

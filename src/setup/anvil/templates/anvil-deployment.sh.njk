@@ -21,9 +21,11 @@ echo "HEIMDALL_ID='$HEIMDALL_ID'" >>.env
 
 export PATH="$HOME/.foundry/bin:$PATH"
 
+sleep 5
+
 # bor contracts are deployed on child chain
-forge script scripts/deployment-scripts/deployContracts.s.sol:DeploymentScript --rpc-url http://localhost:$SERVER_PORT --private-key $PRIVATE_KEY --broadcast
+forge script scripts/deployment-scripts/deployContracts.s.sol:DeploymentScript --legacy --rpc-url http://localhost:$SERVER_PORT --private-key $PRIVATE_KEY --broadcast
 
-forge script scripts/deployment-scripts/drainStakeManager.s.sol:DrainStakeManagerDeployment --rpc-url http://localhost:$SERVER_PORT --private-key $PRIVATE_KEY --broadcast
+forge script scripts/deployment-scripts/drainStakeManager.s.sol:DrainStakeManagerDeployment --legacy --rpc-url http://localhost:$SERVER_PORT --private-key $PRIVATE_KEY --broadcast
 
-forge script scripts/deployment-scripts/initializeState.s.sol:InitializeStateScript --rpc-url http://localhost:$SERVER_PORT --private-key $PRIVATE_KEY --broadcast
+forge script scripts/deployment-scripts/initializeState.s.sol:InitializeStateScript --legacy --rpc-url http://localhost:$SERVER_PORT --private-key $PRIVATE_KEY --broadcast

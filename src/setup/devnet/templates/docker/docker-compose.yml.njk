@@ -7,7 +7,7 @@ networks:
 
 services:
   anvil:
-    image: ghcr.io/foundry-rs/foundry:latest
+    image: ghcr.io/foundry-rs/foundry:v1.2.3
     networks:
       - devnet-network
     volumes:
@@ -34,7 +34,7 @@ services:
     image: local/heimdall
       {% endif %}
     {% else %}
-    image: "maticnetwork/heimdall:{{ obj.config.heimdallBranch }}"
+    image: "0xpolygon/heimdall-v2:{{ obj.config.heimdallBranch }}"
     {% endif %}
     container_name: heimdall{{ node }}
     depends_on:
@@ -61,7 +61,7 @@ services:
     image: local/bor
       {% endif %}
     {% else %}
-    image: "maticnetwork/bor:{{ obj.config.borBranch }}"
+    image: "0xpolygon/bor:{{ obj.config.borBranch }}"
     {% endif %}
 
     container_name: bor{{ node }}

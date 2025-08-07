@@ -1,7 +1,9 @@
 import { program } from 'commander'
 import setupPrograms from './setup/index.js'
 
-import pkg from '../package.json' assert { type: 'json' }
+const pkg = await import('../package.json', {
+  assert: { type: 'json' }
+}).then((module) => module.default)
 
 const setupCmd = program
   .version(pkg.version)

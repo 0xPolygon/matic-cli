@@ -42,9 +42,13 @@ import { relay } from './express/commands/relay.js'
 import { keypairAdd } from './express/commands/keypair-add.js'
 import { keypairDestroy } from './express/commands/keypair-destroy.js'
 import { constants } from './express/common/constants.js'
-
-import pkg from '../package.json' assert { type: 'json' }
+import { sendAuthAndBankTestsCommand } from './express/commands/auth-bank-tests.js'
+import { sendGovTestsCommand } from './express/commands/gov-tests.js'
 import { fundAnvilAccounts } from './express/common/anvil-utils.js'
+
+const pkg = await import('../package.json', {
+  assert: { type: 'json' }
+}).then((module) => module.default)
 
 function checkCloudProvider(provider, _) {
   const supportedClouds = [constants.cloud.AWS, constants.cloud.GCP]
@@ -163,7 +167,12 @@ program
   )
   .option('-relay, --relay', 'Relay transaction to shadow node')
   .option('-rpc, --rpc-test', 'Run the rpc test command')
-  .option('-fga, --fund-anvil-accounts', 'Add funds to anvil accounts')
+  .option('-fga, --fund-anvil-accounts', 'Add funds to the anvil accounts')
+  .option(
+    '-auth-bank, --send-auth-bank-tests',
+    'Run auth and bank module tests for Heimdall'
+  )
+  .option('-gov, --send-gov-tests', 'Run gov module tests for Heimdall')
   .version(pkg.version)
 
 export async function cli() {
@@ -654,5 +663,23 @@ export async function cli() {
       process.exit(1)
     }
     await fundAnvilAccounts()
+  } else if (options.sendGovTests) {
+    console.log('📍Command --send-gov-tests')
+    if (!checkDir(false)) {
+      console.log(
+        '❌ The command is not called from the appropriate devnet directory!'
+      )
+      process.exit(1)
+    }
+    await sendGovTestsCommand()
+  } else if (options.sendAuthBankTests) {
+    console.log('📍Command --send-auth-bank-tests')
+    if (!checkDir(false)) {
+      console.log(
+        '❌ The command is not called from the appropriate devnet directory!'
+      )
+      process.exit(1)
+    }
+    await sendAuthAndBankTestsCommand()
   }
 }

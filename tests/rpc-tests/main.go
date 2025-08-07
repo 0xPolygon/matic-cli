@@ -335,13 +335,6 @@ func main() {
 	}
 }
 
-// TrimString trims a string to the specified length and appends "..." if truncated
-func trimString(s string, maxLength int) string {
-	if len(s) > maxLength {
-		return s[:maxLength] + "..."
-	}
-	return s
-}
 func testCasesToMap(testCases []TestCase) map[string]TestCase {
 	mapTestCases := make(map[string]TestCase)
 	for _, testCase := range testCases {

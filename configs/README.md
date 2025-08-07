@@ -56,6 +56,7 @@ ethHostUser: ubuntu
 devnetBorHosts:
   - 172.20.1.100
   - 172.20.1.101
+
 # IPs of hosts where heimdall will run. Only effective when devnetType is `remote`. It's recommended to run bor and heimdall on same VMs, hence devnetBorHosts===devnetHeimdallHosts
 devnetHeimdallHosts:
   - 172.20.1.100
@@ -71,23 +72,23 @@ devnetHeimdallUsers:
   - ubuntu
   - ubuntu
 
-# Branch of bor to use. Repository: https://github.com/maticnetwork/bor
-borBranch: c5569e4da9ebe0ce4e63aec571966c71234f7cfc # todo change to develop once https://polygon.atlassian.net/browse/POS-979 is solved
+# Branch of bor to use. Repository: https://github.com/0xPolygon/bor
+borBranch: develop
 
-# Branch of Heimdall to use. Repository: https://github.com/maticnetwork/heimdall
+# Branch of Heimdall to use. Repository: https://github.com/0xPolygon/heimdall-v2
 heimdallBranch: develop
 
 # Branch of contract to use. Repository: https://github.com/0xPolygon/pos-contracts
-contractsBranch: anvil-pos # todo change to master once contracts team merges the PR
+contractsBranch: anvil-pos
 
-# Branch of contract to use. Repository: https://github.com/maticnetwork/genesis-contracts
-genesisContractsBranch: mardizzone/node-upgrade # todo change to master once contracts team merges the PR
+# Branch of contract to use. Repository: https://github.com/0xPolygon/genesis-contracts
+genesisContractsBranch: master
 
 # Docker build context for bor. Used in docker setup. When specified, borBranch will be ignored.
-borDockerBuildContext: 'https://github.com/maticnetwork/bor.git#c5569e4da9ebe0ce4e63aec571966c71234f7cfc' # todo change to develop once https://polygon.atlassian.net/browse/POS-979 is solved"
+borDockerBuildContext: 'https://github.com/0xPolygon/bor.git#develop'
 
 # Docker build context for heimdall. Used in docker setup. When specified, heimdallBranch will be ignored.
-heimdallDockerBuildContext: 'https://github.com/maticnetwork/heimdall.git#develop'
+heimdallDockerBuildContext: 'https://github.com/0xPolygon/heimdall-v2.git#develop'
 
 # Datadog api key required to setup datadog traces and metrics for the node.
 DD_API_KEY: <DATADOG API KEY> # Datadog API key

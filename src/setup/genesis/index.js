@@ -22,8 +22,7 @@ export class Genesis {
     this.repositoryName = this.name
     this.repositoryBranch = options.repositoryBranch || 'master'
     this.repositoryUrl =
-      options.repositoryUrl ||
-      'https://github.com/maticnetwork/genesis-contracts'
+      options.repositoryUrl || 'https://github.com/0xPolygon/genesis-contracts'
     this.maticContractsRepository = 'matic-contracts'
   }
 
@@ -105,7 +104,7 @@ export class Genesis {
             })
         },
         {
-          title: 'Process templates',
+          title: 'Process genesis contracts templates',
           task: () =>
             execa(
               'npm',

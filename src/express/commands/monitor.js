@@ -52,45 +52,43 @@ async function checkCheckpoint(ip) {
   const url = `http://${ip}:1317/checkpoints/count`
   const response = await fetch(url)
   const responseJson = await response.json()
-  if (responseJson.result) {
-    if (responseJson.result.result) {
-      return responseJson.result.result
-    }
+  if (responseJson.ack_count) {
+    return responseJson.ack_count
   }
 
   return 0
 }
 
 export async function checkLatestMilestone(ip) {
-  const url = `http://${ip}:1317/milestone/latest`
+  const url = `http://${ip}:1317/milestones/latest`
   const response = await fetch(url)
   return await response.json()
 }
 
 async function checkStateSyncTx(ip, id) {
-  const url = `http://${ip}:1317/clerk/event-record/${id}`
+  const url = `http://${ip}:1317/clerk/event-records/${id}`
   const response = await fetch(url)
   const responseJson = await response.json()
   if (responseJson.error) {
     return undefined
   } else {
-    if (responseJson.result) {
-      return responseJson.result
+    if (responseJson.record) {
+      return responseJson.record
     }
   }
 
   return undefined
 }
 
-async function getStateSyncTxList(ip, startTime, endTime) {
-  const url = `http://${ip}:1317/clerk/event-record/list?from-time=${startTime}&to-time=${endTime}&page=1&limit=200`
+async function getStateSyncTxList(ip) {
+  const url = `http://${ip}:1317/clerk/event-records/list?page=1&limit=50`
   const response = await fetch(url)
   const responseJson = await response.json()
   if (responseJson.error) {
     return undefined
   } else {
-    if (responseJson.result) {
-      return responseJson.result
+    if (responseJson.event_records) {
+      return responseJson.event_records
     }
   }
 
@@ -179,16 +177,7 @@ export async function monitor(exitWhenDone) {
     let stateSyncTxList
     let lastStateSyncTxID
     if (firstStateSyncTx) {
-      const timeOfFirstStateSyncTx = firstStateSyncTx.record_time
-      const firstEpochTime = parseInt(
-        new Date(timeOfFirstStateSyncTx).getTime() / 1000
-      )
-      const currentEpochTime = parseInt(new Date().getTime() / 1000)
-      stateSyncTxList = await getStateSyncTxList(
-        machine0,
-        firstEpochTime,
-        currentEpochTime
-      )
+      stateSyncTxList = await getStateSyncTxList(machine0)
       if (stateSyncTxList) {
         lastStateSyncTxID = stateSyncTxList.length
         const lastStateSyncTxHash =

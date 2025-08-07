@@ -6,6 +6,7 @@ docker compose run -d --service-ports --name heimdall$INDEX --entrypoint bash he
 mkdir -p /heimdall/logs && touch /heimdall/logs/heimdalld.log &
 sleep 60 && heimdalld start --home /var/lib/heimdall \
     --chain=/var/lib/heimdall/config/genesis.json \
+    --api.address "tcp://0.0.0.0:1317" \
     --bridge --all \
     --rest-server > /heimdall/logs/heimdalld.log 2>&1 &
 sleep 10 && tail -f /heimdall/logs/heimdalld.log

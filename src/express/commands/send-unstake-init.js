@@ -74,8 +74,8 @@ export async function sendUnstakeInitEvent(validatorID) {
   let newValidatorsCount = await checkValidatorsLength(doc, machine0)
 
   while (parseInt(newValidatorsCount) !== parseInt(oldValidatorsCount) - 1) {
-    console.log('Waiting 3 secs for validator to be removed')
-    await timer(3000) // waiting 3 secs
+    console.log('Waiting 5 secs for validator to be removed')
+    await timer(5000)
     newValidatorsCount = await checkValidatorsLength(doc, machine0)
     console.log('newValidatorsCount : ', newValidatorsCount)
   }
