@@ -9,7 +9,7 @@ import (
 	"math/big"
 	"net/http"
 	"os"
-	"time"
+	"strconv"
 
 	"context"
 
@@ -67,6 +67,7 @@ type Tx struct {
 	BlockNumber uint64
 	BlockHash   string
 	Hash        string
+	StateSyncId string
 }
 
 type TxResponse struct {
@@ -131,7 +132,7 @@ func getStateSyncTxns(start, end int, remoteRPCUrl string) []Tx {
 
 	fmt.Println("Got records: ", len(logs))
 	for _, log := range logs {
-		txs = append(txs, Tx{BlockNumber: log.BlockNumber, Hash: log.TxHash.Hex(), BlockHash: log.BlockHash.Hex()})
+		txs = append(txs, Tx{BlockNumber: log.BlockNumber, Hash: log.TxHash.Hex(), BlockHash: log.BlockHash.Hex(), StateSyncId: log.Topics[1].Hex()})
 		psCount += 1
 	}
 	return txs
@@ -150,7 +151,6 @@ func FindAllStateSyncTransactions(startBlock, endBlock, interval uint64, remoteR
 		return
 	}
 
-	count := 0
 	for startBlock < endBlock {
 		nextBlockNo := startBlock + interval // 25000
 		txs = getStateSyncTxns(int(startBlock), int(nextBlockNo), remoteRPCUrl)
@@ -164,11 +164,7 @@ func FindAllStateSyncTransactions(startBlock, endBlock, interval uint64, remoteR
 			writeInstructions = append(writeInstructions, WriteInstruction{Key: lookupKey, Value: lookupValue})
 			writeInstructions = append(writeInstructions, WriteInstruction{Key: receiptKey, Value: receiptValue})
 		}
-		startBlock = nextBlockNo
-		if count%5 == 0 {
-			time.Sleep(1 * time.Second)
-		}
-		count += 1
+		startBlock = nextBlockNo + 1
 	}
 	fmt.Println("Total no of records from PS: ", psCount)
 
@@ -223,5 +219,41 @@ func checkTxs(txs []Tx, file *os.File, localRPC string) {
 			missingTxs += 1
 		}
 
+	}
+}
+
+func CheckAllStateSyncTxs(startBlock, endBlock, interval uint64, remoteRPCUrl string) {
+	var alltxs []Tx
+	var missingStateSyncIds []uint64
+	var currentStateSyncId uint64
+
+	for startBlock < endBlock {
+		nextBlockNo := startBlock + interval // 25000
+		txs := getStateSyncTxns(int(startBlock), int(nextBlockNo), remoteRPCUrl)
+		for _, tx := range txs {
+			val, _ := strconv.ParseUint(tx.StateSyncId[2:], 16, 64)
+			if currentStateSyncId != 0 && val-1 != currentStateSyncId {
+				missing := val - 1
+				for {
+					missingStateSyncIds = append(missingStateSyncIds, missing)
+					missing--
+					if missing == currentStateSyncId {
+						break
+					}
+				}
+			}
+			fmt.Printf("Found State Sync Id: %s (%d) | txHash: %s \n", tx.StateSyncId, val, tx.Hash)
+			currentStateSyncId = val
+		}
+		startBlock = nextBlockNo + 1
+		alltxs = append(alltxs, txs...)
+	}
+
+	fmt.Printf("Total amount of txs in the range: %d\n", len(alltxs))
+	fmt.Printf("First StateSyncId: %s\n", alltxs[0].StateSyncId)
+	fmt.Printf("Last StateSyncId: %s\n", alltxs[len(alltxs)-1].StateSyncId)
+	fmt.Printf("\nMissed State Sync:\n\n")
+	for _, ssid := range missingStateSyncIds {
+		fmt.Printf("%d\n", ssid)
 	}
 }

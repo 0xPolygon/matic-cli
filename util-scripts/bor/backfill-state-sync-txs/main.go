@@ -8,7 +8,7 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("Expected a subcommand: 'find-all-state-sync-tx', 'write-missing-state-sync-tx', 'debug-delete-key', 'debug-read-key', 'debug-write-key','debug-encode-bor-receipt-key', or 'debug-encode-bor-tx-lookup-entry'.")
+		fmt.Println("Expected a subcommand: 'find-all-state-sync-tx', 'write-missing-state-sync-tx', 'debug-delete-key', 'debug-read-key', 'debug-write-key','debug-encode-bor-receipt-key', 'debug-check-all-state-sync-tx', or 'debug-encode-bor-tx-lookup-entry'.")
 		os.Exit(1)
 	}
 
@@ -111,6 +111,20 @@ func main() {
 			os.Exit(1)
 		}
 		DebugEncodeBorReceiptValue(*hash, *remoteRPC)
+
+	case "debug-check-all-state-sync-tx":
+		checkAllStateSyncCmd := flag.NewFlagSet("debug-check-all-state-sync-tx", flag.ExitOnError)
+		startBlock := checkAllStateSyncCmd.Uint64("start-block", 0, "Start block number")
+		endBlock := checkAllStateSyncCmd.Uint64("end-block", 0, "End block number")
+		interval := checkAllStateSyncCmd.Uint64("interval", 0, "Block Interval for PS queries")
+		remoteRPC := checkAllStateSyncCmd.String("remote-rpc", "", "Source-of-truth RPC URL")
+		checkAllStateSyncCmd.Parse(os.Args[2:])
+
+		if *remoteRPC == "" {
+			checkAllStateSyncCmd.Usage()
+			os.Exit(1)
+		}
+		CheckAllStateSyncTxs(*startBlock, *endBlock, *interval, *remoteRPC)
 
 	default:
 		fmt.Printf("Unknown subcommand: %s\n", os.Args[1])
