@@ -130,7 +130,7 @@ func getStateSyncTxns(start, end int, remoteRPCUrl string) []Tx {
 
 	// fmt.Println(PrettyPrint(result))
 
-	fmt.Println("Got records: ", len(logs))
+	fmt.Printf("Got records: %d  on range(%d, %d)\n", len(logs), start, end)
 	for _, log := range logs {
 		txs = append(txs, Tx{BlockNumber: log.BlockNumber, Hash: log.TxHash.Hex(), BlockHash: log.BlockHash.Hex(), StateSyncId: log.Topics[1].Hex()})
 		psCount += 1
@@ -155,11 +155,11 @@ func FindAllStateSyncTransactions(startBlock, endBlock, interval uint64, remoteR
 		nextBlockNo := startBlock + interval // 25000
 		txs = getStateSyncTxns(int(startBlock), int(nextBlockNo), remoteRPCUrl)
 		for _, tx := range txs {
-			lookupKey := DebugEncodeBorTxLookupEntry(tx.Hash)
+			lookupKey := DebugEncodeBorTxLookupEntry(tx.Hash, false)
 			lookupValue := fmt.Sprintf("0x%s", common.Bytes2Hex(big.NewInt(0).SetUint64(tx.BlockNumber).Bytes()))
 
-			receiptKey := DebugEncodeBorReceiptKey(tx.BlockNumber, tx.BlockHash)
-			receiptValue := DebugEncodeBorReceiptValue(tx.Hash, remoteRPCUrl)
+			receiptKey := DebugEncodeBorReceiptKey(tx.BlockNumber, tx.BlockHash, false)
+			receiptValue := DebugEncodeBorReceiptValue(tx.Hash, remoteRPCUrl, false)
 
 			writeInstructions = append(writeInstructions, WriteInstruction{Key: lookupKey, Value: lookupValue})
 			writeInstructions = append(writeInstructions, WriteInstruction{Key: receiptKey, Value: receiptValue})

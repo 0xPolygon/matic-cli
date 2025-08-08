@@ -30,7 +30,7 @@ const (
 )
 
 // DebugEncodeBorReceiptKey encodes a bor receipt key for debugging (empty implementation)
-func DebugEncodeBorReceiptKey(number uint64, blockHashString string) string {
+func DebugEncodeBorReceiptKey(number uint64, blockHashString string, shouldPrint bool) string {
 	blockHashString = blockHashString[2:]
 	hash := common.HexToHash(blockHashString)
 	enc := make([]byte, 8)
@@ -38,25 +38,29 @@ func DebugEncodeBorReceiptKey(number uint64, blockHashString string) string {
 
 	bytesKey := append(append(borReceiptPrefix, enc...), hash.Bytes()...)
 	output := fmt.Sprintf("0x%s", common.Bytes2Hex(bytesKey))
-	fmt.Println(output)
+	if shouldPrint {
+		fmt.Println(output)
+	}
 	return output
 
 }
 
 // DebugEncodeBorTxLookupEntry encodes a bor transaction lookup entry for debugging (empty implementation)
-func DebugEncodeBorTxLookupEntry(hashString string) string {
+func DebugEncodeBorTxLookupEntry(hashString string, shouldPrint bool) string {
 	hashString = hashString[2:]
 
 	hash := common.HexToHash(hashString)
 	bytesKey := append(borTxLookupPrefix, hash.Bytes()...)
 
 	output := fmt.Sprintf("0x%s", common.Bytes2Hex(bytesKey))
-	fmt.Println(output)
+	if shouldPrint {
+		fmt.Println(output)
+	}
 	return output
 }
 
 // DebugEncodeBorReceiptValue queries the TX receipt by hash and hex encode it encodes the recept to byte value to be stored on db
-func DebugEncodeBorReceiptValue(hashString string, remoteRPCUrl string) string {
+func DebugEncodeBorReceiptValue(hashString string, remoteRPCUrl string, shouldPrint bool) string {
 	hashString = hashString[2:]
 	txHash := common.HexToHash(hashString)
 
@@ -78,7 +82,9 @@ func DebugEncodeBorReceiptValue(hashString string, remoteRPCUrl string) string {
 		fmt.Printf("failed to get receipt for %s: %w\n", txHash, err)
 		return ""
 	}
-	fmt.Printf("%d\n\n", len(receiptJustLogs.Logs))
+	if shouldPrint {
+		fmt.Printf("%d\n\n", len(receiptJustLogs.Logs))
+	}
 
 	bytes, err := rlp.EncodeToBytes(&types.ReceiptForStorage{
 		Status: types.ReceiptStatusSuccessful, // make receipt status successful
@@ -89,7 +95,9 @@ func DebugEncodeBorReceiptValue(hashString string, remoteRPCUrl string) string {
 	}
 
 	output := fmt.Sprintf("0x%s", common.Bytes2Hex(bytes))
-	fmt.Printf("\n\nEncoded Bor Receipt:\n\n%s\n", output)
+	if shouldPrint {
+		fmt.Printf("\n\nEncoded Bor Receipt:\n\n%s\n", output)
+	}
 	return output
 }
 

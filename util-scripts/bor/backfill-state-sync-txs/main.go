@@ -87,7 +87,7 @@ func main() {
 			recCmd.Usage()
 			os.Exit(1)
 		}
-		DebugEncodeBorReceiptKey(*number, *hash)
+		DebugEncodeBorReceiptKey(*number, *hash, true)
 
 	case "debug-encode-bor-tx-lookup-entry":
 		txCmd := flag.NewFlagSet("debug-encode-bor-tx-lookup-entry", flag.ExitOnError)
@@ -98,7 +98,7 @@ func main() {
 			txCmd.Usage()
 			os.Exit(1)
 		}
-		DebugEncodeBorTxLookupEntry(*hash)
+		DebugEncodeBorTxLookupEntry(*hash, true)
 
 	case "debug-encode-bor-receipt-value":
 		receiptValueCmd := flag.NewFlagSet("debug-encode-bor-receipt-value", flag.ExitOnError)
@@ -110,7 +110,7 @@ func main() {
 			receiptValueCmd.Usage()
 			os.Exit(1)
 		}
-		DebugEncodeBorReceiptValue(*hash, *remoteRPC)
+		DebugEncodeBorReceiptValue(*hash, *remoteRPC, true)
 
 	case "debug-check-all-state-sync-tx":
 		checkAllStateSyncCmd := flag.NewFlagSet("debug-check-all-state-sync-tx", flag.ExitOnError)
