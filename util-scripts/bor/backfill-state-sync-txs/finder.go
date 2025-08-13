@@ -10,6 +10,9 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"sync"
+	"sync/atomic"
+	"time"
 
 	"context"
 
@@ -143,17 +146,16 @@ func PrettyPrint(i interface{}) string {
 	return string(s)
 }
 
-func FindAllStateSyncTransactions(startBlock, endBlock, interval uint64, remoteRPCUrl, outputFile string) {
-	var txs []Tx
+func FindAllStateSyncTransactions(startBlock, endBlock, interval, concurrency uint64, remoteRPCUrl, outputFile string) {
 	var writeInstructions []WriteInstruction
 	var file, err = os.OpenFile(outputFile, os.O_RDWR|os.O_CREATE, 0755)
 	if err != nil {
 		return
 	}
+	results := concurrentFetchAllStateSyncTxs(startBlock, endBlock, interval, int(concurrency), remoteRPCUrl)
 
-	for startBlock < endBlock {
-		nextBlockNo := startBlock + interval // 25000
-		txs = getStateSyncTxns(int(startBlock), int(nextBlockNo), remoteRPCUrl)
+	for i := 0; i < len(results); i++ {
+		txs := results[i]
 		for _, tx := range txs {
 			lookupKey := DebugEncodeBorTxLookupEntry(tx.Hash, false)
 			lookupValue := fmt.Sprintf("0x%s", common.Bytes2Hex(big.NewInt(0).SetUint64(tx.BlockNumber).Bytes()))
@@ -164,7 +166,6 @@ func FindAllStateSyncTransactions(startBlock, endBlock, interval uint64, remoteR
 			writeInstructions = append(writeInstructions, WriteInstruction{Key: lookupKey, Value: lookupValue})
 			writeInstructions = append(writeInstructions, WriteInstruction{Key: receiptKey, Value: receiptValue})
 		}
-		startBlock = nextBlockNo + 1
 	}
 	fmt.Println("Total no of records from PS: ", psCount)
 
@@ -222,38 +223,129 @@ func checkTxs(txs []Tx, file *os.File, localRPC string) {
 	}
 }
 
-func CheckAllStateSyncTxs(startBlock, endBlock, interval uint64, remoteRPCUrl string) {
+func CheckAllStateSyncTxs(startBlock, endBlock, interval, concurrency uint64, remoteRPCUrl string) {
+	results := concurrentFetchAllStateSyncTxs(startBlock, endBlock, interval, int(concurrency), remoteRPCUrl)
+
+	// Now process strictly in original call order.
 	var alltxs []Tx
 	var missingStateSyncIds []uint64
 	var currentStateSyncId uint64
 
-	for startBlock < endBlock {
-		nextBlockNo := startBlock + interval // 25000
-		txs := getStateSyncTxns(int(startBlock), int(nextBlockNo), remoteRPCUrl)
+	for i := 0; i < len(results); i++ {
+		txs := results[i]
+		alltxs = append(alltxs, txs...)
 		for _, tx := range txs {
 			val, _ := strconv.ParseUint(tx.StateSyncId[2:], 16, 64)
 			if currentStateSyncId != 0 && val-1 != currentStateSyncId {
-				missing := val - 1
-				for {
+				for missing := val - 1; missing > currentStateSyncId; missing-- {
 					missingStateSyncIds = append(missingStateSyncIds, missing)
-					missing--
-					if missing == currentStateSyncId {
-						break
-					}
 				}
 			}
-			fmt.Printf("Found State Sync Id: %s (%d) | txHash: %s \n", tx.StateSyncId, val, tx.Hash)
+			// fmt.Printf("Found State Sync Id: %s (%d) | txHash: %s \n", tx.StateSyncId, val, tx.Hash)
 			currentStateSyncId = val
 		}
-		startBlock = nextBlockNo + 1
-		alltxs = append(alltxs, txs...)
 	}
 
 	fmt.Printf("Total amount of txs in the range: %d\n", len(alltxs))
-	fmt.Printf("First StateSyncId: %s\n", alltxs[0].StateSyncId)
-	fmt.Printf("Last StateSyncId: %s\n", alltxs[len(alltxs)-1].StateSyncId)
+	if len(alltxs) > 0 {
+		fmt.Printf("First StateSyncId: %s\n", alltxs[0].StateSyncId)
+		fmt.Printf("Last StateSyncId: %s\n", alltxs[len(alltxs)-1].StateSyncId)
+	} else {
+		fmt.Println("First/Last StateSyncId: (no transactions found in range)")
+	}
 	fmt.Printf("\nMissed State Sync:\n\n")
 	for _, ssid := range missingStateSyncIds {
 		fmt.Printf("%d\n", ssid)
 	}
+}
+
+func concurrentFetchAllStateSyncTxs(startBlock, endBlock, interval uint64, concurrency int, remoteRPCUrl string) [][]Tx {
+	ranges := makeRanges(startBlock, endBlock, interval)
+	total := len(ranges)
+	if total == 0 {
+		return nil
+	}
+
+	// Fetch in parallel, but store results by index so we can process in order.
+	results := make([][]Tx, total)
+
+	if concurrency < 1 {
+		concurrency = 1
+	}
+
+	type idxRange struct {
+		i        int
+		from, to uint64
+	}
+	jobs := make(chan idxRange)
+
+	var completed int64
+	start := time.Now()
+
+	var wg sync.WaitGroup
+	wg.Add(concurrency)
+	for w := 0; w < concurrency; w++ {
+		go func(worker int) {
+			defer wg.Done()
+			for j := range jobs {
+				// NOTE: getStateSyncTxns takes int; convert safely
+				results[j.i] = getStateSyncTxns(int(j.from), int(j.to), remoteRPCUrl)
+
+				// --- progress + ETA ---
+				done := atomic.AddInt64(&completed, 1)
+				elapsed := time.Since(start)
+				remaining := total - int(done)
+
+				var eta time.Duration
+				if done > 0 && remaining > 0 {
+					avgPer := elapsed / time.Duration(done)
+					eta = time.Duration(remaining) * avgPer
+				}
+
+				pct := float64(done) / float64(total) * 100
+				log.Printf("progress: %d/%d (%.1f%%), eta: %s",
+					done, total, pct, formatETA(eta))
+			}
+		}(w)
+	}
+
+	for i, r := range ranges {
+		jobs <- idxRange{i: i, from: r[0], to: r[1]}
+	}
+	close(jobs)
+	wg.Wait()
+
+	return results
+}
+
+// Helper to format durations as HH:MM:SS
+func formatETA(d time.Duration) string {
+	if d <= 0 {
+		return "00:00:00"
+	}
+	h := int(d.Hours())
+	m := int(d.Minutes()) % 60
+	s := int(d.Seconds()) % 60
+	return fmt.Sprintf("%02d:%02d:%02d", h, m, s)
+}
+
+func makeRanges(startBlock, endBlock, interval uint64) [][2]uint64 {
+	if interval == 0 {
+		interval = 1
+	}
+	var out [][2]uint64
+	for s := startBlock; s <= endBlock; {
+		// Use inclusive upper bound and cap to endBlock
+		to := s + interval - 1
+		if to > endBlock {
+			to = endBlock
+		}
+		out = append(out, [2]uint64{s, to})
+
+		if to == endBlock {
+			break
+		}
+		s = to + 1
+	}
+	return out
 }
