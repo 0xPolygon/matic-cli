@@ -34,6 +34,7 @@ bor server \
   --maxpeers 200 \
   --metrics --metrics.expensive \
   --metrics.opencollector-endpoint="127.0.0.1:4317" \
+  --parallelevm.enable=false \
   --unlock $ADDRESS \
   --miner.etherbase $ADDRESS \
   --keystore $BOR_DIR/keystore \
