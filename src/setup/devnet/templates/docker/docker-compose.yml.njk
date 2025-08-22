@@ -41,6 +41,9 @@ services:
       - rabbit{{ node }}
     networks:
       - devnet-network
+    environment:
+      - NO_COLOR=1
+      - TERM=dumb
     volumes:
       - ./devnet/node{{ node }}/heimdalld:/var/lib/heimdall
       - ./logs/node{{ node }}/heimdall:/heimdall/logs
