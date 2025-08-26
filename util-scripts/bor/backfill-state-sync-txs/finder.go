@@ -223,40 +223,89 @@ func checkTxs(txs []Tx, file *os.File, localRPC string) {
 	}
 }
 
+// Add this near your other types.
+type MissedInterval struct {
+	Start, End           uint64 // missing range [Start..End]
+	PrevID, NextID       uint64 // the neighbors we DID see
+	PrevBlock, NextBlock uint64 // blocks of those neighbors
+}
+
+// Pretty-printer for the intervals.
+func printMissedIntervals(intervals []MissedInterval) {
+	// Count total missing ids.
+	var total uint64
+	for _, m := range intervals {
+		total += (m.End - m.Start + 1)
+	}
+
+	if len(intervals) == 0 {
+		fmt.Println("Missed State Syncs: none ✅")
+		return
+	}
+
+	fmt.Printf("Missed State Syncs: %d id(s) across %d interval(s)\n\n", total, len(intervals))
+	for _, m := range intervals {
+		if m.Start == m.End {
+			// Single missing id
+			fmt.Printf("#%d (prev: #%d @ block %d, next: #%d @ block %d)\n",
+				m.Start, m.PrevID, m.PrevBlock, m.NextID, m.NextBlock)
+		} else {
+			// Range
+			fmt.Printf("%d–%d (prev: #%d @ block %d, next: #%d @ block %d)\n",
+				m.Start, m.End, m.PrevID, m.PrevBlock, m.NextID, m.NextBlock)
+		}
+	}
+}
+
+// Replace your CheckAllStateSyncTxs with this version.
 func CheckAllStateSyncTxs(startBlock, endBlock, interval, concurrency uint64, remoteRPCUrl string) {
 	results := concurrentFetchAllStateSyncTxs(startBlock, endBlock, interval, int(concurrency), remoteRPCUrl)
 
-	// Now process strictly in original call order.
+	// We'll collect everything to preserve original output context.
 	var alltxs []Tx
-	var missingStateSyncIds []uint64
-	var currentStateSyncId uint64
+
+	// We detect gaps on the fly, keeping track of the last seen StateSyncId and its block.
+	var intervals []MissedInterval
+	var prevID uint64
+	var prevBlock uint64
+	var havePrev bool
 
 	for i := 0; i < len(results); i++ {
 		txs := results[i]
 		alltxs = append(alltxs, txs...)
+
 		for _, tx := range txs {
 			val, _ := strconv.ParseUint(tx.StateSyncId[2:], 16, 64)
-			if currentStateSyncId != 0 && val-1 != currentStateSyncId {
-				for missing := val - 1; missing > currentStateSyncId; missing-- {
-					missingStateSyncIds = append(missingStateSyncIds, missing)
-				}
+
+			// Only report gaps after we've seen at least one id.
+			if havePrev && val > prevID+1 {
+				intervals = append(intervals, MissedInterval{
+					Start:     prevID + 1,
+					End:       val - 1,
+					PrevID:    prevID,
+					NextID:    val,
+					PrevBlock: prevBlock,
+					NextBlock: tx.BlockNumber,
+				})
 			}
-			// fmt.Printf("Found State Sync Id: %s (%d) | txHash: %s \n", tx.StateSyncId, val, tx.Hash)
-			currentStateSyncId = val
+
+			prevID = val
+			prevBlock = tx.BlockNumber
+			havePrev = true
 		}
 	}
 
 	fmt.Printf("Total amount of txs in the range: %d\n", len(alltxs))
 	if len(alltxs) > 0 {
-		fmt.Printf("First StateSyncId: %s\n", alltxs[0].StateSyncId)
-		fmt.Printf("Last StateSyncId: %s\n", alltxs[len(alltxs)-1].StateSyncId)
+		fmt.Printf("First StateSyncId: %s @ block %d\n", alltxs[0].StateSyncId, alltxs[0].BlockNumber)
+		last := alltxs[len(alltxs)-1]
+		fmt.Printf("Last  StateSyncId: %s @ block %d\n", last.StateSyncId, last.BlockNumber)
 	} else {
 		fmt.Println("First/Last StateSyncId: (no transactions found in range)")
 	}
-	fmt.Printf("\nMissed State Sync:\n\n")
-	for _, ssid := range missingStateSyncIds {
-		fmt.Printf("%d\n", ssid)
-	}
+
+	fmt.Println()
+	printMissedIntervals(intervals)
 }
 
 func concurrentFetchAllStateSyncTxs(startBlock, endBlock, interval uint64, concurrency int, remoteRPCUrl string) [][]Tx {
