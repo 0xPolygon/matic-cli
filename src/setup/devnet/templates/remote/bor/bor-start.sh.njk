@@ -25,6 +25,7 @@ bor server \
   --ipcpath $BOR_DATA_DIR/bor.ipc \
   --http.api 'eth,net,web3,txpool,bor,debug' \
   --bor.logs=true \
+  --state.scheme="path" \
   --syncmode 'full' \
   --miner.gaslimit '20000000' \
   --txpool.nolocals \
@@ -34,6 +35,7 @@ bor server \
   --maxpeers 200 \
   --metrics --metrics.expensive \
   --metrics.opencollector-endpoint="127.0.0.1:4317" \
+  --parallelevm.enable=true \
   --unlock $ADDRESS \
   --miner.etherbase $ADDRESS \
   --keystore $BOR_DIR/keystore \

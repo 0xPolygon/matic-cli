@@ -11,7 +11,7 @@ keystore = "/var/lib/bor/keystore"
 "rpc.returndatalimit" = 100000
 syncmode = "full"
 gcmode = "full"
-snapshot = true
+# snapshot = false
 "bor.logs" = true
 ethstats = ""
 devfakeauthor = false
@@ -180,6 +180,9 @@ devfakeauthor = false
   dev = false
   period = 0
   gaslimit = 11500000
+
+[state]
+  scheme = "path"
 
 [parallelevm]
   enable = true

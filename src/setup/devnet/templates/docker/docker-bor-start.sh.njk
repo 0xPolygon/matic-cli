@@ -31,12 +31,14 @@ bor server \
   --ipcpath $DATA_DIR/bor.ipc \
   --http.api 'personal,eth,net,web3,txpool,miner,admin,bor,debug' \
   --bor.logs=true \
+  --state.scheme="path" \
   --syncmode 'full' \
   --miner.gaslimit '2000000000' \
   --txpool.nolocals \
   --txpool.accountslots '128' \
   --txpool.globalslots '20000' \
   --txpool.lifetime '0h16m0s' \
+  --parallelevm.enable=true \
   --unlock $ADDRESS \
   --miner.etherbase $ADDRESS \
   --disable-bor-wallet=false \
