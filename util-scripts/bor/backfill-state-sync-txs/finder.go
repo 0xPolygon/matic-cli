@@ -154,9 +154,13 @@ func FindAllStateSyncTransactions(startBlock, endBlock, interval, concurrency ui
 	}
 	results := concurrentFetchAllStateSyncTxs(startBlock, endBlock, interval, int(concurrency), remoteRPCUrl)
 
+	txInserted := make(map[string]struct{})
 	for i := 0; i < len(results); i++ {
 		txs := results[i]
 		for _, tx := range txs {
+			if _, alreadyInserted := txInserted[tx.Hash]; alreadyInserted {
+				continue
+			}
 			lookupKey := DebugEncodeBorTxLookupEntry(tx.Hash, false)
 			lookupValue := fmt.Sprintf("0x%s", common.Bytes2Hex(big.NewInt(0).SetUint64(tx.BlockNumber).Bytes()))
 
@@ -165,6 +169,7 @@ func FindAllStateSyncTransactions(startBlock, endBlock, interval, concurrency ui
 
 			writeInstructions = append(writeInstructions, WriteInstruction{Key: lookupKey, Value: lookupValue})
 			writeInstructions = append(writeInstructions, WriteInstruction{Key: receiptKey, Value: receiptValue})
+			txInserted[tx.Hash] = struct{}{}
 		}
 	}
 	fmt.Println("Total no of records from PS: ", psCount)
