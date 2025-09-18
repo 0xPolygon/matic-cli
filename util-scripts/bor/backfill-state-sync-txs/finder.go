@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -152,25 +153,25 @@ func FindAllStateSyncTransactions(startBlock, endBlock, interval, concurrency ui
 	if err != nil {
 		return
 	}
-	results := concurrentFetchAllStateSyncTxs(startBlock, endBlock, interval, int(concurrency), remoteRPCUrl)
+	results, err := CheckAllStateSyncTxs(startBlock, endBlock, interval, concurrency, remoteRPCUrl)
+	if err != nil {
+		log.Fatalf("error on interval: %v", err)
+	}
 
 	txInserted := make(map[string]struct{})
-	for i := 0; i < len(results); i++ {
-		txs := results[i]
-		for _, tx := range txs {
-			if _, alreadyInserted := txInserted[tx.Hash]; alreadyInserted {
-				continue
-			}
-			lookupKey := DebugEncodeBorTxLookupEntry(tx.Hash, false)
-			lookupValue := fmt.Sprintf("0x%s", common.Bytes2Hex(big.NewInt(0).SetUint64(tx.BlockNumber).Bytes()))
-
-			receiptKey := DebugEncodeBorReceiptKey(tx.BlockNumber, tx.BlockHash, false)
-			receiptValue := DebugEncodeBorReceiptValue(tx.Hash, remoteRPCUrl, false)
-
-			writeInstructions = append(writeInstructions, WriteInstruction{Key: lookupKey, Value: lookupValue})
-			writeInstructions = append(writeInstructions, WriteInstruction{Key: receiptKey, Value: receiptValue})
-			txInserted[tx.Hash] = struct{}{}
+	for _, tx := range results {
+		if _, alreadyInserted := txInserted[tx.Hash]; alreadyInserted {
+			continue
 		}
+		lookupKey := DebugEncodeBorTxLookupEntry(tx.Hash, false)
+		lookupValue := fmt.Sprintf("0x%s", common.Bytes2Hex(big.NewInt(0).SetUint64(tx.BlockNumber).Bytes()))
+
+		receiptKey := DebugEncodeBorReceiptKey(tx.BlockNumber, tx.BlockHash, false)
+		receiptValue := DebugEncodeBorReceiptValue(tx.Hash, remoteRPCUrl, false)
+
+		writeInstructions = append(writeInstructions, WriteInstruction{Key: lookupKey, Value: lookupValue})
+		writeInstructions = append(writeInstructions, WriteInstruction{Key: receiptKey, Value: receiptValue})
+		txInserted[tx.Hash] = struct{}{}
 	}
 	fmt.Println("Total no of records from PS: ", psCount)
 
@@ -263,7 +264,7 @@ func printMissedIntervals(intervals []MissedInterval) {
 }
 
 // Replace your CheckAllStateSyncTxs with this version.
-func CheckAllStateSyncTxs(startBlock, endBlock, interval, concurrency uint64, remoteRPCUrl string) {
+func CheckAllStateSyncTxs(startBlock, endBlock, interval, concurrency uint64, remoteRPCUrl string) ([]Tx, error) {
 	results := concurrentFetchAllStateSyncTxs(startBlock, endBlock, interval, int(concurrency), remoteRPCUrl)
 
 	// We'll collect everything to preserve original output context.
@@ -311,6 +312,11 @@ func CheckAllStateSyncTxs(startBlock, endBlock, interval, concurrency uint64, re
 
 	fmt.Println()
 	printMissedIntervals(intervals)
+
+	if len(intervals) > 0 {
+		return nil, errors.New("no consecutive interval")
+	}
+	return alltxs, nil
 }
 
 func concurrentFetchAllStateSyncTxs(startBlock, endBlock, interval uint64, concurrency int, remoteRPCUrl string) [][]Tx {
