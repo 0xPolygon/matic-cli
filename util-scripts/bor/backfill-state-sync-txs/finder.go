@@ -173,7 +173,7 @@ func FindAllStateSyncTransactions(startBlock, endBlock, interval, concurrency ui
 		writeInstructions = append(writeInstructions, WriteInstruction{Key: receiptKey, Value: receiptValue})
 		txInserted[tx.Hash] = struct{}{}
 	}
-	fmt.Println("Total no of records from PS: ", psCount)
+	fmt.Println("Total no of records: ", len(writeInstructions))
 
 	fmt.Println()
 
@@ -183,6 +183,7 @@ func FindAllStateSyncTransactions(startBlock, endBlock, interval, concurrency ui
 	}
 	file.WriteString(string(b))
 	defer file.Close()
+	fmt.Println("Data Successfull written: ", outputFile)
 
 }
 
