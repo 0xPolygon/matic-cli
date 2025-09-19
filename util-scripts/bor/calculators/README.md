@@ -3,7 +3,7 @@
 ## 🔍 What's Inside
 
 | Script                  | Description                                                                                                                                                           |
-|-------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `avg_blocktime/main.go` | Calculates the average block time over the last 40k, 280k, 560k, and 1.12M blocks on the Bor chain. Useful for chain health monitoring and block production analysis. |
 | `hf_block/main.go`      | Predicts the block height corresponding to a future target UTC time given an assumed average block time for the Bor chain (e.g. planning for hard forks or upgrades). |
 
@@ -32,7 +32,7 @@ This script
 
 ```bash
 cd hf_block
-go run main.go -target=<TIMESTAMP> -avg="AVG_SECONDS" [-rpc=<POLYGON_RPC_URL>] 
+go run main.go -target=<TIMESTAMP> -avg="AVG_SECONDS" [-rpc=<POLYGON_RPC_URL>]
 # Example:
 go run main.go-target="2025-10-07T14:00:00Z" -avg=2.156
 ```
