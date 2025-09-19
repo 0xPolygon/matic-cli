@@ -17,7 +17,8 @@ func main() {
 		findCmd := flag.NewFlagSet("find-all-state-sync-tx", flag.ExitOnError)
 		startBlock := findCmd.Uint64("start-block", 0, "Start block number")
 		endBlock := findCmd.Uint64("end-block", 0, "End block number")
-		interval := findCmd.Uint64("interval", 0, "Block Interval for PS queries")
+		interval := findCmd.Uint64("interval", 0, "Block Interval for queries")
+		batchSize := findCmd.Uint64("batch-size", 0, "RPC Batch size for receipt retrieval")
 		concurrency := findCmd.Uint64("concurrency", 1, "Concurrency limit")
 		remoteRPC := findCmd.String("remote-rpc", "", "Source-of-truth RPC URL")
 		outputFile := findCmd.String("output-file", "", "Path to output file")
@@ -27,7 +28,7 @@ func main() {
 			findCmd.Usage()
 			os.Exit(1)
 		}
-		FindAllStateSyncTransactions(*startBlock, *endBlock, *interval, *concurrency, *remoteRPC, *outputFile)
+		FindAllStateSyncTransactions(*startBlock, *endBlock, *interval, *batchSize, *concurrency, *remoteRPC, *outputFile)
 
 	case "write-missing-state-sync-tx":
 		writeCmd := flag.NewFlagSet("write-missing-state-sync-tx", flag.ExitOnError)
@@ -117,7 +118,7 @@ func main() {
 		checkAllStateSyncCmd := flag.NewFlagSet("debug-check-all-state-sync-tx", flag.ExitOnError)
 		startBlock := checkAllStateSyncCmd.Uint64("start-block", 0, "Start block number")
 		endBlock := checkAllStateSyncCmd.Uint64("end-block", 0, "End block number")
-		interval := checkAllStateSyncCmd.Uint64("interval", 0, "Block Interval for PS queries")
+		interval := checkAllStateSyncCmd.Uint64("interval", 0, "Block Interval for queries")
 		concurrency := checkAllStateSyncCmd.Uint64("concurrency", 1, "Concurrency calls")
 		remoteRPC := checkAllStateSyncCmd.String("remote-rpc", "", "Source-of-truth RPC URL")
 		checkAllStateSyncCmd.Parse(os.Args[2:])

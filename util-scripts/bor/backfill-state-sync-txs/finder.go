@@ -146,7 +146,7 @@ func PrettyPrint(i interface{}) string {
 	return string(s)
 }
 
-func FindAllStateSyncTransactions(startBlock, endBlock, interval, concurrency uint64, remoteRPCUrl, outputFile string) {
+func FindAllStateSyncTransactions(startBlock, endBlock, interval, batchSize, concurrency uint64, remoteRPCUrl, outputFile string) {
 	var writeInstructions []WriteInstruction
 
 	file, err := os.OpenFile(outputFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o755)
@@ -183,9 +183,6 @@ func FindAllStateSyncTransactions(startBlock, endBlock, interval, concurrency ui
 	}
 	defer client.Close()
 
-	// Tune these knobs if needed
-	const defaultBatchSize = 100 // many providers accept 50–1000; 100 is a safe start
-	batchSize := defaultBatchSize
 	if batchSize <= 0 {
 		batchSize = 100
 	}
@@ -196,7 +193,7 @@ func FindAllStateSyncTransactions(startBlock, endBlock, interval, concurrency ui
 	}
 
 	// Batched + concurrent receipt fetch+encode
-	receiptWIs, err := batchedReceipts(ctx, client, unique, batchSize, workerCount, false)
+	receiptWIs, err := batchedReceipts(ctx, client, unique, int(batchSize), workerCount, false)
 	if err != nil {
 		// non-fatal in case some receipts succeeded; choose fatal if you prefer strictness
 		log.Printf("warnings during batched receipts: %v", err)
