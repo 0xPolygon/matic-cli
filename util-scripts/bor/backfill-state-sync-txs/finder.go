@@ -1,16 +1,14 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"math/big"
-	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -19,6 +17,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -149,85 +148,257 @@ func PrettyPrint(i interface{}) string {
 
 func FindAllStateSyncTransactions(startBlock, endBlock, interval, concurrency uint64, remoteRPCUrl, outputFile string) {
 	var writeInstructions []WriteInstruction
-	var file, err = os.OpenFile(outputFile, os.O_RDWR|os.O_CREATE, 0755)
+
+	file, err := os.OpenFile(outputFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o755)
 	if err != nil {
-		return
+		log.Fatalf("failed to open output file: %v", err)
 	}
+	defer file.Close()
+
 	results, err := CheckAllStateSyncTxs(startBlock, endBlock, interval, concurrency, remoteRPCUrl)
 	if err != nil {
 		log.Fatalf("error on interval: %v", err)
 	}
 
-	txInserted := make(map[string]struct{})
+	// Dedup txs and build lookup entries (no RPC needed)
+	txInserted := make(map[string]struct{}, len(results))
+	unique := make([]Tx, 0, len(results))
 	for _, tx := range results {
-		if _, alreadyInserted := txInserted[tx.Hash]; alreadyInserted {
+		if _, ok := txInserted[tx.Hash]; ok {
 			continue
 		}
+		txInserted[tx.Hash] = struct{}{}
+		unique = append(unique, tx)
+
 		lookupKey := DebugEncodeBorTxLookupEntry(tx.Hash, false)
 		lookupValue := fmt.Sprintf("0x%s", common.Bytes2Hex(big.NewInt(0).SetUint64(tx.BlockNumber).Bytes()))
-
-		receiptKey := DebugEncodeBorReceiptKey(tx.BlockNumber, tx.BlockHash, false)
-		receiptValue := DebugEncodeBorReceiptValue(tx.Hash, remoteRPCUrl, false)
-
 		writeInstructions = append(writeInstructions, WriteInstruction{Key: lookupKey, Value: lookupValue})
-		writeInstructions = append(writeInstructions, WriteInstruction{Key: receiptKey, Value: receiptValue})
-		txInserted[tx.Hash] = struct{}{}
 	}
-	fmt.Println("Total no of records: ", len(writeInstructions))
 
+	// Single RPC client reused across all batches/workers
+	ctx := context.Background()
+	client, err := rpc.DialContext(ctx, remoteRPCUrl)
+	if err != nil {
+		log.Fatalf("failed to connect to RPC %s: %v", remoteRPCUrl, err)
+	}
+	defer client.Close()
+
+	// Tune these knobs if needed
+	const defaultBatchSize = 100 // many providers accept 50–1000; 100 is a safe start
+	batchSize := defaultBatchSize
+	if batchSize <= 0 {
+		batchSize = 100
+	}
+	// reuse the incoming concurrency param for workers
+	workerCount := int(concurrency)
+	if workerCount <= 0 {
+		workerCount = 8
+	}
+
+	// Batched + concurrent receipt fetch+encode
+	receiptWIs, err := batchedReceipts(ctx, client, unique, batchSize, workerCount, false)
+	if err != nil {
+		// non-fatal in case some receipts succeeded; choose fatal if you prefer strictness
+		log.Printf("warnings during batched receipts: %v", err)
+	}
+
+	// Merge: lookups (already added) + receipt write instructions
+	writeInstructions = append(writeInstructions, receiptWIs...)
+
+	fmt.Println("Total no of records: ", len(writeInstructions))
 	fmt.Println()
 
 	b, err := json.MarshalIndent(writeInstructions, "", "    ")
 	if err != nil {
 		log.Fatalf("json.MarshalIndent failed: %v", err)
 	}
-	file.WriteString(string(b))
-	defer file.Close()
-	fmt.Println("Data Successfull written: ", outputFile)
-
+	if _, err := file.Write(b); err != nil {
+		log.Fatalf("failed writing output: %v", err)
+	}
+	fmt.Println("Data Successfully written: ", outputFile)
 }
 
-func checkTxs(txs []Tx, file *os.File, localRPC string) {
+// batchedReceipts fetches receipts for txs in batches, concurrently.
+func batchedReceipts(
+	ctx context.Context,
+	client *rpc.Client,
+	txs []Tx,
+	batchSize int,
+	concurrency int,
+	shouldPrint bool,
+) ([]WriteInstruction, error) {
 
-	// curl localhost:8545 -X POST -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","method":"eth_getTransactionByHash","params":["0xd96ecec3ac99e7e0f1edc62cff7d349c8c51cbfd0efc72f00662ecee6d41b14a"],"id":0}'
-
-	// url := "http://localhost:80"
-
-	for _, tx := range txs {
-		var jsonStr = []byte(`{"jsonrpc":"2.0","method":"eth_getTransactionByHash","params":["` + tx.Hash + `"],"id":0}`)
-		req, err := http.NewRequest("POST", localRPC, bytes.NewBuffer(jsonStr))
-		req.Header.Set("Content-Type", "application/json")
-
-		client := &http.Client{}
-		resp, err := client.Do(req)
-		if err != nil {
-			panic(err)
-		}
-		defer resp.Body.Close()
-
-		// fmt.Println("response Status:", resp.Status)
-		// fmt.Println("response Headers:", resp.Header)
-		body, _ := io.ReadAll(resp.Body)
-
-		var result TxResponse
-		if err := json.Unmarshal(body, &result); err != nil { // Parse []byte to the go struct pointer
-			fmt.Println("Bor: Cannot unmarshal JSON")
-			fmt.Println(string(body))
-		}
-
-		// fmt.Println("response Body:", string(body))
-
-		jsonStr, err = json.Marshal(tx)
-		if err != nil {
-			fmt.Println("Bor: Error dumping json")
-		}
-
-		if result.Result == nil {
-			file.WriteString(string(jsonStr) + "\n")
-			missingTxs += 1
-		}
-
+	type job struct {
+		chunk []Tx
 	}
+	jobs := make(chan job, concurrency*2)
+	out := make(chan []WriteInstruction, concurrency*2)
+	errs := make(chan error, concurrency)
+
+	chunks := chunkTxs(txs, batchSize)
+	totalJobs := len(chunks)
+
+	worker := func() {
+		defer func() {
+			// drain panics
+			if r := recover(); r != nil {
+				errs <- fmt.Errorf("worker panic: %v", r)
+			}
+		}()
+
+		for j := range jobs {
+			chunk := j.chunk
+			elems := make([]rpc.BatchElem, len(chunk))
+			results := make([]*ReceiptJustLogs, len(chunk))
+
+			for i, tx := range chunk {
+				// normalize hash (remove 0x if present)
+				h := strings.TrimPrefix(tx.Hash, "0x")
+				txHash := common.HexToHash(h)
+				results[i] = &ReceiptJustLogs{}
+
+				elems[i] = rpc.BatchElem{
+					Method: "eth_getTransactionReceipt",
+					Args:   []interface{}{txHash},
+					Result: results[i],
+				}
+			}
+
+			// Do one batched call for the chunk
+			callCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+			err := client.BatchCallContext(callCtx, elems)
+			cancel()
+			if err != nil {
+				errs <- fmt.Errorf("batch call failed (%d items): %w", len(chunk), err)
+				continue
+			}
+
+			// Build write instructions for every successful element
+			var wi []WriteInstruction
+			for i, el := range elems {
+				tx := chunk[i]
+				if el.Error != nil {
+					// upstream might rate-limit or skip unknown receipt; skip but report
+					errs <- fmt.Errorf("receipt error for %s: %v", tx.Hash, el.Error)
+					continue
+				}
+				// Result is already unmarshaled into results[i]
+				rjl := results[i]
+				if rjl == nil || rjl.Logs == nil {
+					// missing/unknown receipt; skip
+					continue
+				}
+
+				// Encode as Bor receipt value (Status forced to successful)
+				bytes, encErr := rlp.EncodeToBytes(&types.ReceiptForStorage{
+					Status: types.ReceiptStatusSuccessful,
+					Logs:   rjl.Logs,
+				})
+				if encErr != nil {
+					errs <- fmt.Errorf("RLP encode failed for %s: %v", tx.Hash, encErr)
+					continue
+				}
+
+				receiptKey := DebugEncodeBorReceiptKey(tx.BlockNumber, tx.BlockHash, false)
+				receiptValue := fmt.Sprintf("0x%s", common.Bytes2Hex(bytes))
+				wi = append(wi, WriteInstruction{Key: receiptKey, Value: receiptValue})
+
+				if shouldPrint {
+					fmt.Printf("tx %s -> %d logs\n", tx.Hash, len(rjl.Logs))
+				}
+			}
+			out <- wi
+		}
+	}
+
+	// start workers
+	var wg sync.WaitGroup
+	for w := 0; w < concurrency; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			worker()
+		}()
+	}
+
+	// feed jobs
+	go func() {
+		defer close(jobs)
+		for _, c := range chunks {
+			jobs <- job{chunk: c}
+		}
+	}()
+
+	// close out when workers finish
+	go func() {
+		wg.Wait()
+		close(out)
+		close(errs)
+	}()
+
+	// collect results; aggregate errors but don’t fail hard unless you want to
+	var all []WriteInstruction
+	var firstErr error
+	var completed int64
+	start := time.Now()
+
+	for out != nil || errs != nil {
+		select {
+		case wi, ok := <-out:
+			if !ok {
+				out = nil
+				continue
+			}
+			all = append(all, wi...)
+			// --- progress + ETA ---
+			done := atomic.AddInt64(&completed, 1)
+			elapsed := time.Since(start)
+			remaining := totalJobs - int(done)
+
+			var eta time.Duration
+			if done > 0 && remaining > 0 {
+				avgPer := elapsed / time.Duration(done)
+				eta = time.Duration(remaining) * avgPer
+			}
+
+			pct := float64(done) / float64(totalJobs) * 100
+			log.Printf("progress: %d/%d (%.1f%%), eta: %s",
+				done, totalJobs, pct, formatETA(eta))
+
+		case e, ok := <-errs:
+			if !ok {
+				errs = nil
+				continue
+			}
+			// keep the first error to surface; others just log
+			if firstErr == nil {
+				firstErr = e
+			} else {
+				log.Printf("batch worker error: %v", e)
+			}
+		}
+	}
+	return all, firstErr
+}
+
+// split into a matrix first so we can know totalJobs
+func chunkTxs(txs []Tx, batchSize int) [][]Tx {
+	if batchSize <= 0 {
+		batchSize = 100
+	}
+	n := len(txs)
+	if n == 0 {
+		return nil
+	}
+	chunks := make([][]Tx, 0, (n+batchSize-1)/batchSize)
+	for i := 0; i < n; i += batchSize {
+		end := i + batchSize
+		if end > n {
+			end = n
+		}
+		chunks = append(chunks, txs[i:end])
+	}
+	return chunks
 }
 
 // Add this near your other types.
