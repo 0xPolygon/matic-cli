@@ -29,7 +29,5 @@ func WriteMissingStateSyncTransactions(dataPath string, txFile string) {
 	}
 
 	fmt.Printf("Found %d instructions to write on db", len(instructions))
-	for _, instruction := range instructions {
-		DebugWriteKey(dataPath, instruction.Key, instruction.Value)
-	}
+	DebugWriteKey(dataPath, instructions)
 }
