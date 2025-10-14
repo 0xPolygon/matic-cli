@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -105,18 +106,9 @@ type WriteInstruction struct {
 var psCount int
 var missingTxs int
 
-func getStateSyncTxns(start, end int, remoteRPCUrl string) []Tx {
+func getStateSyncTxns(ctx context.Context, client *rpc.Client, start, end int, remoteRPCUrl string) ([]Tx, error) {
 	var txs []Tx
-	ctx := context.Background()
-	// Connect to the RPC server
-	client, err := rpc.DialContext(ctx, remoteRPCUrl)
-	if err != nil {
-		fmt.Errorf("failed to connect to RPC %s: %w", remoteRPCUrl, err)
-		return nil
-	}
-	defer client.Close()
 
-	// Build filter object for eth_getLogs
 	filter := map[string]interface{}{
 		"fromBlock": hexutil.Uint64(start),
 		"toBlock":   hexutil.Uint64(end),
@@ -124,21 +116,22 @@ func getStateSyncTxns(start, end int, remoteRPCUrl string) []Tx {
 		"topics":    [][]common.Hash{{common.HexToHash("0x5a22725590b0a51c923940223f7458512164b1113359a735e86e7f27f44791ee")}},
 	}
 
-	// Call eth_getLogs
 	var logs []types.Log
 	if err := client.CallContext(ctx, &logs, "eth_getLogs", filter); err != nil {
-		fmt.Errorf("failed to get logs: %w", err)
-		return nil
+		return nil, fmt.Errorf("eth_getLogs failed for range (%d,%d): %w", start, end, err)
 	}
 
-	// fmt.Println(PrettyPrint(result))
-
-	fmt.Printf("Got records: %d  on range(%d, %d)\n", len(logs), start, end)
+	fmt.Printf("Got records: %d on range(%d, %d)\n", len(logs), start, end)
 	for _, log := range logs {
-		txs = append(txs, Tx{BlockNumber: log.BlockNumber, Hash: log.TxHash.Hex(), BlockHash: log.BlockHash.Hex(), StateSyncId: log.Topics[1].Hex()})
-		psCount += 1
+		txs = append(txs, Tx{
+			BlockNumber: log.BlockNumber,
+			Hash:        log.TxHash.Hex(),
+			BlockHash:   log.BlockHash.Hex(),
+			StateSyncId: log.Topics[1].Hex(),
+		})
+		psCount++
 	}
-	return txs
+	return txs, nil
 }
 
 func PrettyPrint(i interface{}) string {
@@ -434,7 +427,10 @@ func printMissedIntervals(intervals []MissedInterval) {
 
 // Replace your CheckAllStateSyncTxs with this version.
 func CheckAllStateSyncTxs(startBlock, endBlock, interval, concurrency uint64, remoteRPCUrl string) ([]Tx, error) {
-	results := concurrentFetchAllStateSyncTxs(startBlock, endBlock, interval, int(concurrency), remoteRPCUrl)
+	results, err := concurrentFetchAllStateSyncTxs(startBlock, endBlock, interval, int(concurrency), remoteRPCUrl)
+	if err != nil {
+		return nil, err
+	}
 
 	// We'll collect everything to preserve original output context.
 	var alltxs []Tx
@@ -488,16 +484,26 @@ func CheckAllStateSyncTxs(startBlock, endBlock, interval, concurrency uint64, re
 	return alltxs, nil
 }
 
-func concurrentFetchAllStateSyncTxs(startBlock, endBlock, interval uint64, concurrency int, remoteRPCUrl string) [][]Tx {
+func NewRPCClientWithHTTPTimeout(ctx context.Context, url string, timeout time.Duration) (*rpc.Client, error) {
+	tr := &http.Transport{
+		MaxIdleConns:    64,
+		IdleConnTimeout: 90 * time.Second,
+	}
+	httpClient := &http.Client{
+		Transport: tr,
+		Timeout:   timeout, // <- global per-request timeout at HTTP layer
+	}
+	return rpc.DialOptions(ctx, url, rpc.WithHTTPClient(httpClient))
+}
+
+func concurrentFetchAllStateSyncTxs(startBlock, endBlock, interval uint64, concurrency int, remoteRPCUrl string) ([][]Tx, error) {
 	ranges := makeRanges(startBlock, endBlock, interval)
 	total := len(ranges)
 	if total == 0 {
-		return nil
+		return nil, nil
 	}
 
-	// Fetch in parallel, but store results by index so we can process in order.
 	results := make([][]Tx, total)
-
 	if concurrency < 1 {
 		concurrency = 1
 	}
@@ -506,21 +512,50 @@ func concurrentFetchAllStateSyncTxs(startBlock, endBlock, interval uint64, concu
 		i        int
 		from, to uint64
 	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	client, err := NewRPCClientWithHTTPTimeout(ctx, remoteRPCUrl, 30*time.Second)
+	if err != nil {
+		log.Fatalf("failed to connect to RPC %s: %v", remoteRPCUrl, err)
+	}
+	defer client.Close()
+
 	jobs := make(chan idxRange)
 
 	var completed int64
 	start := time.Now()
 
 	var wg sync.WaitGroup
+	errOnce := &sync.Once{}
+	var retErr error
+
 	wg.Add(concurrency)
 	for w := 0; w < concurrency; w++ {
 		go func(worker int) {
 			defer wg.Done()
 			for j := range jobs {
-				// NOTE: getStateSyncTxns takes int; convert safely
-				results[j.i] = getStateSyncTxns(int(j.from), int(j.to), remoteRPCUrl)
+				// Respect global cancellation.
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
 
-				// --- progress + ETA ---
+				txs, err := getStateSyncTxns(ctx, client, int(j.from), int(j.to), remoteRPCUrl)
+				if err != nil {
+					// First error wins: log and cancel everyone.
+					errOnce.Do(func() {
+						retErr = fmt.Errorf("code stopped: worker %d failed for range (%d,%d): %w", worker, j.from, j.to, err)
+						log.Printf("%v", retErr)
+						cancel()
+					})
+					return
+				}
+				results[j.i] = txs
+
+				// Progress / ETA
 				done := atomic.AddInt64(&completed, 1)
 				elapsed := time.Since(start)
 				remaining := total - int(done)
@@ -530,21 +565,27 @@ func concurrentFetchAllStateSyncTxs(startBlock, endBlock, interval uint64, concu
 					avgPer := elapsed / time.Duration(done)
 					eta = time.Duration(remaining) * avgPer
 				}
-
 				pct := float64(done) / float64(total) * 100
-				log.Printf("progress: %d/%d (%.1f%%), eta: %s",
-					done, total, pct, formatETA(eta))
+				log.Printf("progress: %d/%d (%.1f%%), eta: %s", done, total, pct, formatETA(eta))
 			}
 		}(w)
 	}
 
 	for i, r := range ranges {
-		jobs <- idxRange{i: i, from: r[0], to: r[1]}
+		select {
+		case <-ctx.Done():
+			break
+		default:
+			jobs <- idxRange{i: i, from: r[0], to: r[1]}
+		}
 	}
 	close(jobs)
 	wg.Wait()
 
-	return results
+	if retErr != nil {
+		return nil, retErr
+	}
+	return results, nil
 }
 
 // Helper to format durations as HH:MM:SS
