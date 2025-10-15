@@ -30,7 +30,7 @@ const (
 )
 
 // DebugEncodeBorReceiptKey encodes a bor receipt key for debugging (empty implementation)
-func DebugEncodeBorReceiptKey(number uint64, blockHashString string) string {
+func DebugEncodeBorReceiptKey(number uint64, blockHashString string, shouldPrint bool) string {
 	blockHashString = blockHashString[2:]
 	hash := common.HexToHash(blockHashString)
 	enc := make([]byte, 8)
@@ -38,25 +38,29 @@ func DebugEncodeBorReceiptKey(number uint64, blockHashString string) string {
 
 	bytesKey := append(append(borReceiptPrefix, enc...), hash.Bytes()...)
 	output := fmt.Sprintf("0x%s", common.Bytes2Hex(bytesKey))
-	fmt.Println(output)
+	if shouldPrint {
+		fmt.Println(output)
+	}
 	return output
 
 }
 
 // DebugEncodeBorTxLookupEntry encodes a bor transaction lookup entry for debugging (empty implementation)
-func DebugEncodeBorTxLookupEntry(hashString string) string {
+func DebugEncodeBorTxLookupEntry(hashString string, shouldPrint bool) string {
 	hashString = hashString[2:]
 
 	hash := common.HexToHash(hashString)
 	bytesKey := append(borTxLookupPrefix, hash.Bytes()...)
 
 	output := fmt.Sprintf("0x%s", common.Bytes2Hex(bytesKey))
-	fmt.Println(output)
+	if shouldPrint {
+		fmt.Println(output)
+	}
 	return output
 }
 
 // DebugEncodeBorReceiptValue queries the TX receipt by hash and hex encode it encodes the recept to byte value to be stored on db
-func DebugEncodeBorReceiptValue(hashString string, remoteRPCUrl string) string {
+func DebugEncodeBorReceiptValue(hashString string, remoteRPCUrl string, shouldPrint bool) string {
 	hashString = hashString[2:]
 	txHash := common.HexToHash(hashString)
 
@@ -78,7 +82,9 @@ func DebugEncodeBorReceiptValue(hashString string, remoteRPCUrl string) string {
 		fmt.Printf("failed to get receipt for %s: %w\n", txHash, err)
 		return ""
 	}
-	fmt.Printf("%d\n\n", len(receiptJustLogs.Logs))
+	if shouldPrint {
+		fmt.Printf("%d\n\n", len(receiptJustLogs.Logs))
+	}
 
 	bytes, err := rlp.EncodeToBytes(&types.ReceiptForStorage{
 		Status: types.ReceiptStatusSuccessful, // make receipt status successful
@@ -89,7 +95,9 @@ func DebugEncodeBorReceiptValue(hashString string, remoteRPCUrl string) string {
 	}
 
 	output := fmt.Sprintf("0x%s", common.Bytes2Hex(bytes))
-	fmt.Printf("\n\nEncoded Bor Receipt:\n\n%s\n", output)
+	if shouldPrint {
+		fmt.Printf("\n\nEncoded Bor Receipt:\n\n%s\n", output)
+	}
 	return output
 }
 
@@ -155,9 +163,7 @@ func DebugReadKey(dataPath string, key string) {
 	fmt.Printf("\n\nValue found on key:\n0x%x\n", value)
 }
 
-func DebugWriteKey(dataPath string, key string, value string) {
-	key = key[2:]
-	value = value[2:]
+func DebugWriteKey(dataPath string, writeInstructions []WriteInstruction) {
 
 	// Path to Pebble database (chaindata) under the data directory
 	dbPath := filepath.Join(dataPath, "bor", "chaindata")
@@ -167,30 +173,43 @@ func DebugWriteKey(dataPath string, key string, value string) {
 	}
 	defer db.Close()
 
-	// Decode hex-encoded key
-	keyBytes, err := hex.DecodeString(key)
-	if err != nil {
-		log.Fatalf("Invalid hex key %s: %v", key, err)
-	}
+	batch := db.NewBatch()
+	for _, instruction := range writeInstructions {
+		key := instruction.Key
+		value := instruction.Value
 
-	// Decode hex-encoded key
-	valueBytes, err := hex.DecodeString(value)
-	if err != nil {
-		log.Fatalf("Invalid hex value %s: %v", key, err)
-	}
+		key = key[2:]
+		value = value[2:]
 
-	// Read value
-	err = Put(db, keyBytes, valueBytes)
-	if err != nil {
-		if err == pebble.ErrNotFound {
-			fmt.Printf("Key %s not found in database\n", key)
-			return
+		// Decode hex-encoded key
+		keyBytes, err := hex.DecodeString(key)
+		if err != nil {
+			log.Fatalf("Invalid hex key %s: %v", key, err)
 		}
-		log.Fatalf("Error reading key %s: %v", key, err)
+
+		// Decode hex-encoded key
+		valueBytes, err := hex.DecodeString(value)
+		if err != nil {
+			log.Fatalf("Invalid hex value %s: %v", key, err)
+		}
+
+		// Read value
+		err = PutBatch(batch, keyBytes, valueBytes)
+		if err != nil {
+			if err == pebble.ErrNotFound {
+				fmt.Printf("Key %s not found in database\n", key)
+				return
+			}
+			log.Fatalf("Error reading key %s: %v", key, err)
+		}
+	}
+
+	if err := WriteBatch(batch); err != nil {
+		log.Fatalf("Error writing keys: %v", err)
 	}
 
 	// Print value in hex
-	fmt.Printf("Successfully write the key\n")
+	fmt.Printf("Successfully write the keys\n")
 }
 
 func Get(db *pebble.DB, key []byte) ([]byte, error) {
@@ -210,6 +229,14 @@ func Get(db *pebble.DB, key []byte) ([]byte, error) {
 // Put inserts the given value into the key-value store.
 func Put(db *pebble.DB, key []byte, value []byte) error {
 	return db.Set(key, value, pebble.Sync)
+}
+
+func PutBatch(batch *pebble.Batch, key []byte, value []byte) error {
+	return batch.Set(key, value, nil)
+}
+
+func WriteBatch(batch *pebble.Batch) error {
+	return batch.Commit(pebble.Sync)
 }
 
 // Delete removes the key from the key-value store.
