@@ -30,6 +30,16 @@ export async function pullAndRestartBor(ip, i, isPull) {
       console.log('📍Installing bor...')
       command = 'cd ~/matic-cli/devnet/code/bor && make bor'
       await runSshCommand(ip, command, maxRetries)
+
+      console.log('📍Moving new bor binary...')
+      command =
+        'sudo cp ~/matic-cli/devnet/code/bor/build/bin/bor /usr/bin/ || echo "new bor binary could not be copied"'
+      await runSshCommand(ip, command, maxRetries)
+
+      console.log('📍Moving new heimdall binary...')
+      command =
+        'sudo cp ~/matic-cli/devnet/code/bor/build/bin/bor ~/go/bin/ || echo "new bor binary could not be copied"'
+      await runSshCommand(ip, command, maxRetries)
     } else {
       console.log('📍Cloning bor repo...')
       command = `cd ~ && git clone ${borRepo} || (cd ~/bor; git fetch)`
@@ -43,6 +53,16 @@ export async function pullAndRestartBor(ip, i, isPull) {
 
       console.log('📍Installing bor...')
       command = 'cd ~/bor && make bor'
+      await runSshCommand(ip, command, maxRetries)
+
+      console.log('📍Moving new bor binary...')
+      command =
+        'sudo cp ~/bor/build/bin/bor /usr/bin/ || echo "new bor binary could not be copied"'
+      await runSshCommand(ip, command, maxRetries)
+
+      console.log('📍Moving new heimdall binary...')
+      command =
+        'sudo cp ~/bor/build/bin/bor ~/go/bin/ || echo "new bor binary could not be copied"'
       await runSshCommand(ip, command, maxRetries)
     }
   }
@@ -122,15 +142,25 @@ export async function pullAndRestartHeimdall(doc, ip, i, isPull) {
           heimdallBranch +
           ' ...'
       )
-      command = `cd ~/matic-cli/devnet/code/heimdall && git fetch && git checkout ${heimdallBranch} && git pull origin ${heimdallBranch} `
+      command = `cd ~/matic-cli/devnet/code/heimdall-v2 && git fetch && git checkout ${heimdallBranch} && git pull origin ${heimdallBranch} `
       await runSshCommand(ip, command, maxRetries)
 
       console.log('📍Installing heimdall...')
-      command = 'cd ~/matic-cli/devnet/code/heimdall && make install'
+      command = 'cd ~/matic-cli/devnet/code/heimdall-v2 && make build'
+      await runSshCommand(ip, command, maxRetries)
+
+      console.log('📍Moving new heimdall binary...')
+      command =
+        'sudo cp ~/matic-cli/devnet/code/heimdall-v2/build/heimdalld /usr/bin/ || echo "new heimdalld binary could not be copied"'
+      await runSshCommand(ip, command, maxRetries)
+
+      console.log('📍Moving new heimdall binary...')
+      command =
+        'sudo cp ~/matic-cli/devnet/code/heimdall-v2/build/heimdalld ~/go/bin/ || echo "new heimdalld binary could not be copied"'
       await runSshCommand(ip, command, maxRetries)
     } else {
       console.log('📍Cloning heimdall repo...')
-      command = `cd ~ && git clone ${heimdallRepo} || (cd ~/heimdall; git fetch)`
+      command = `cd ~ && git clone ${heimdallRepo} || (cd ~/heimdall-v2; git fetch)`
       await runSshCommand(ip, command, maxRetries)
 
       console.log(
@@ -138,11 +168,21 @@ export async function pullAndRestartHeimdall(doc, ip, i, isPull) {
           heimdallBranch +
           ' ...'
       )
-      command = `cd ~/heimdall && git fetch && git checkout ${heimdallBranch} && git pull origin ${heimdallBranch} `
+      command = `cd ~/heimdall-v2 && git fetch && git checkout ${heimdallBranch} && git pull origin ${heimdallBranch} `
       await runSshCommand(ip, command, maxRetries)
 
       console.log('📍Installing heimdall...')
-      command = 'cd ~/heimdall && make install'
+      command = 'cd ~/heimdall-v2 && make build'
+      await runSshCommand(ip, command, maxRetries)
+
+      console.log('📍Moving new heimdall binary...')
+      command =
+        'sudo cp ~/heimdall-v2/build/heimdalld /usr/bin/ || echo "new heimdalld binary could not be copied"'
+      await runSshCommand(ip, command, maxRetries)
+
+      console.log('📍Moving new heimdall binary...')
+      command =
+        'sudo cp ~/heimdall-v2/build/heimdalld ~/go/bin/ || echo "new heimdalld binary could not be copied"'
       await runSshCommand(ip, command, maxRetries)
     }
   }

@@ -5,4 +5,4 @@ set -x
 HEIMDALL_HOME_DIR={{ obj.heimdallDataDir }}
 BUILD_DIR={{ obj.buildDir }}
 
-$BUILD_DIR/heimdalld --home $HEIMDALL_HOME_DIR start --chain=$HEIMDALL_HOME_DIR/config/genesis.json --bridge --all --rest-server
+$BUILD_DIR/heimdalld --home $HEIMDALL_HOME_DIR start --bridge --all --rest-server

@@ -18,4 +18,6 @@ cd {{ obj.contracts.repositoryDir }}
 
 export PATH="$HOME/.foundry/bin:$PATH"
 
-forge script --legacy scripts/deployment-scripts/syncChildStateToRoot.s.sol:SyncChildStateToRootScript --rpc-url http://localhost:$SERVER_PORT --private-key $PRIVATE_KEY --broadcast
+sleep 5
+
+forge script scripts/deployment-scripts/syncChildStateToRoot.s.sol:SyncChildStateToRootScript --legacy --rpc-url http://localhost:$SERVER_PORT --private-key $PRIVATE_KEY --broadcast

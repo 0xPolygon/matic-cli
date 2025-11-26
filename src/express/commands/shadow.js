@@ -53,7 +53,7 @@ export async function shadow(targetBlock) {
   const startScriptLocation = '~/node/bor-start.sh'
   const launchFolder =
     process.env.NETWORK === 'mainnet' ? 'mainnet-v1' : 'amoy-v1'
-  const genesisCmd = `curl -o ${shadowGenesisLocation} https://raw.githubusercontent.com/maticnetwork/launch/master/${launchFolder}/sentry/validator/bor/genesis.json`
+  const genesisCmd = `curl -o ${shadowGenesisLocation} https://raw.githubusercontent.com/0xPolygon/launch/master/${launchFolder}/sentry/validator/bor/genesis.json`
 
   shadowBorChainId = process.env.SHADOW_CHAIN_ID
   if (!shadowBorChainId) {

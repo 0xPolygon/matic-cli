@@ -222,6 +222,14 @@ The `express-cli` also comes with additional utility commands, listed below. Som
 
   - Create a `UnstakeInit` transaction on the remote network and removes the validator from validator-set. `validatorID` can be used to specify the validator to be removed. If not specified, the first validator will be removed.
 
+- `../../bin/express-cli.js --send-gov-tests`
+
+  - Runs end-to-end tests for gov module of Heimdall.
+
+- `../../bin/express-cli.js --send-auth-bank-tests`
+
+  - Runs end-to-end tests for auth and bank module of Heimdall.
+
 - ` ../../bin/express-cli.js --monitor [exit]`
 
   - Monitors the reception of state-syncs and checkpoints to make sure the whole network is in a healthy state.
@@ -329,7 +337,7 @@ Please, make sure to install the following software/packages on the VMs.
 - Go 1.18+ (_host_ and _remotes_)
 
   ```bash
-  wget https://raw.githubusercontent.com/maticnetwork/node-ansible/master/go-install.sh \
+  wget https://raw.githubusercontent.com/0xPolygon/node-ansible/master/go-install.sh \
     && bash go-install.sh --remove \
     && bash go-install.sh
   ```
@@ -392,7 +400,7 @@ Please, make sure to install the following software/packages on the VMs.
 - Go 1.18+ (_host_ and _remotes_)
 
   ```zsh
-  curl -O https://raw.githubusercontent.com/maticnetwork/node-ansible/master/go-install.sh
+  curl -O https://raw.githubusercontent.com/0xPolygon/node-ansible/master/go-install.sh
   bash go-install.sh --remove
   bash go-install.sh
   ```
@@ -423,7 +431,7 @@ Please, make sure to install the following software/packages on the VMs.
   pyenv global 3.13.2
   python3 --version
   pyenv exec python3 -m ensurepip --default-pip
-  python -m pip install --upgrade pip
+  python3 -m pip install --upgrade pip
   ```
 
 - Solc v0.5.17 and 0.6.12 (only _host_)
@@ -447,12 +455,14 @@ On the _host_ machine, please run
 
 ```bash
 cd \
-  && git clone https://github.com/maticnetwork/matic-cli.git \
+  && git clone https://github.com/0xPolygon/matic-cli.git \
   && cd matic-cli \
   && npm install
 ```
 
 #### Local dockerized network
+
+Install the required software on your machine (see [Requirements](#requirements-1)).
 
 Adjust the [docker configs](configs/devnet/docker-setup-config.yaml) based on your setup, and run
 
@@ -481,7 +491,8 @@ To verify the deployment, run the smoke test to ensure everything is working pro
 bash ../util-scripts/docker/smoke_test.sh
 ```
 
-To add funds to the signer's account, note that this step is optional. All existing signers already have sufficient funds.
+To add funds to the signer's account you can execute the following script.  
+This step is optional, as all existing signers already have sufficient funds.
 
 ```bash
 bash ../util-scripts/docker/fund_anvil_accounts.sh

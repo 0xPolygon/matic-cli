@@ -30,7 +30,7 @@ export class Bor {
     this.repositoryName = 'bor'
     this.repositoryBranch = options.repositoryBranch || 'develop'
     this.repositoryUrl =
-      options.repositoryUrl || 'https://github.com/maticnetwork/bor'
+      options.repositoryUrl || 'https://github.com/0xPolygon/bor'
 
     this.genesis = new Genesis(config)
   }

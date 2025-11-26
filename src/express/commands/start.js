@@ -142,7 +142,7 @@ async function installCommonPackages(ip) {
   await runSshCommand(ip, command, maxRetries)
 
   console.log('📍Installing go...')
-  command = `wget -nc https://raw.githubusercontent.com/maticnetwork/node-ansible/master/go-install.sh &&
+  command = `wget -nc https://raw.githubusercontent.com/0xPolygon/node-ansible/master/go-install.sh &&
                          bash go-install.sh --remove &&
                          bash go-install.sh &&
                          source ~/.bashrc`

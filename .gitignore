@@ -21,3 +21,4 @@ signer-dump.json
 .vscode
 
 util-scripts/migration/*
+util-scripts/bor/backfill-state-sync-txs/bin/*

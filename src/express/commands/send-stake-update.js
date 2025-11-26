@@ -14,7 +14,9 @@ import {
 import dotenv from 'dotenv'
 import fs from 'fs-extra'
 
-import ERC20ABI from '../../abi/ERC20ABI.json' assert { type: 'json' }
+const ERC20ABI = await import('../../abi/ERC20ABI.json', {
+  assert: { type: 'json' }
+}).then((module) => module.default)
 
 export async function sendStakeUpdateEvent(validatorID) {
   dotenv.config({ path: `${process.cwd()}/.env` })
@@ -74,7 +76,6 @@ export async function sendStakeUpdateEvent(validatorID) {
   )
   const pkey = signerDump[validatorID - 1].priv_key
   const validatorAccount = signerDump[validatorID - 1].address
-
   const tx = MaticTokenContract.methods.approve(
     StakeManagerProxyAddress,
     rootChainWeb3.utils.toWei('1000')
@@ -122,12 +123,12 @@ export async function sendStakeUpdateEvent(validatorID) {
 }
 
 async function getValidatorPower(doc, machine0, validatorID) {
-  const command = `curl localhost:1317/staking/validator/${validatorID}`
+  const command = `curl localhost:1317/stake/validator/${validatorID}`
   const out = await runSshCommandWithReturn(
     `${doc.ethHostUser}@${machine0}`,
     command,
     maxRetries
   )
   const outObj = JSON.parse(out)
-  return outObj.result.power
+  return outObj.validator.voting_power
 }

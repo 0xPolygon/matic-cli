@@ -417,11 +417,11 @@ export async function fetchLatestMilestone(
     }
 
     milestone = await checkLatestMilestone(host)
-    if (milestone.result) {
+    if (milestone.milestone) {
       // Check against last milestone (if present) if it's immediate next one or not
       if (lastMilestone) {
         if (
-          Number(milestone.result.start_block) ===
+          Number(milestone.milestone.start_block) ===
           Number(lastMilestone.end_block) + 1
         ) {
           break
@@ -434,13 +434,13 @@ export async function fetchLatestMilestone(
     } else {
       console.log(
         `📍Invalid milestone received. Response: ${JSON.stringify(
-          milestone.result
+          milestone.milestone
         )}, count: ${count}`
       )
     }
   }
 
-  const latestMilestone = milestone.result
+  const latestMilestone = milestone.milestone
   console.log(
     `📍Got milestone from heimdall. Start block: ${Number(
       latestMilestone.start_block

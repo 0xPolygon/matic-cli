@@ -94,7 +94,7 @@ export class Devnet {
   }
 
   heimdallAppConfigFilePath(index) {
-    return path.join(this.heimdallDir(index), 'config', 'heimdall-config.toml')
+    return path.join(this.heimdallDir(index), 'config', 'app.toml')
   }
 
   borDir(index) {
@@ -247,7 +247,7 @@ export class Devnet {
     return [
       enodeTask,
       {
-        title: 'Process Heimdall configs',
+        title: 'Process Heimdall app configs',
         task: async () => {
           // set heimdall
           for (let i = 0; i < this.totalBorNodes; i++) {
@@ -285,6 +285,20 @@ export class Devnet {
         }
       },
       {
+        title: 'Process Heimdall configs',
+        task: async () => {
+          // set heimdall
+          for (let i = 0; i < this.totalBorNodes; i++) {
+            fileReplacer(this.heimdallConfigFilePath(i))
+              .replace(
+                /laddr[ ]*=[ ]*"tcp:\/\/127\.0\.0\.1:26657"/gi,
+                'laddr = "tcp://0.0.0.0:26657"'
+              )
+              .save()
+          }
+        }
+      },
+      {
         title: 'Process contract addresses',
         task: () => {
           // get root contracts
@@ -294,8 +308,8 @@ export class Devnet {
           for (let i = 0; i < this.totalBorNodes; i++) {
             fileReplacer(this.heimdallGenesisFilePath(i))
               .replace(
-                /"matic_token_address":[ ]*".*"/gi,
-                `"matic_token_address": "${rootContracts.tokens.MaticToken}"`
+                /"pol_token_address":[ ]*".*"/gi,
+                `"pol_token_address": "${rootContracts.tokens.MaticToken}"`
               )
               .replace(
                 /"staking_manager_address":[ ]*".*"/gi,
@@ -313,6 +327,8 @@ export class Devnet {
                 /"state_sender_address":[ ]*".*"/gi,
                 `"state_sender_address": "${rootContracts.StateSender}"`
               )
+              .replace(/"voting_period"\s*:\s*".*"/g, '"voting_period": "60s"')
+              .replace(/"expedited_voting_period"\s*:\s*".*"/g, '"expedited_voting_period": "50s"')
               .save()
           }
         },
@@ -406,8 +422,8 @@ export class Devnet {
           for (let i = 0; i < this.totalNodes; i++) {
             fileReplacer(this.heimdallGenesisFilePath(i))
               .replace(
-                /"matic_token_address":[ ]*".*"/gi,
-                `"matic_token_address": "${rootContracts.tokens.TestToken}"`
+                /"pol_token_address":[ ]*".*"/gi,
+                `"pol_token_address": "${rootContracts.tokens.MaticToken}"`
               )
               .replace(
                 /"staking_manager_address":[ ]*".*"/gi,
@@ -425,6 +441,8 @@ export class Devnet {
                 /"state_sender_address":[ ]*".*"/gi,
                 `"state_sender_address": "${rootContracts.StateSender}"`
               )
+              .replace(/"voting_period"\s*:\s*".*"/g, '"voting_period": "60s"')
+              .replace(/"expedited_voting_period"\s*:\s*".*"/g, '"expedited_voting_period": "50s"')
               .save()
           }
         },
@@ -433,7 +451,7 @@ export class Devnet {
         }
       },
       {
-        title: 'Process templates',
+        title: 'Process njk templates',
         task: async () => {
           const templateDir = path.resolve(
             new URL(import.meta.url).pathname,
@@ -685,7 +703,6 @@ export class Devnet {
             return
           }
           // copy the Anvil files to the first node
-
           const anvilURL = new URL(this.config.ethURL)
           const anvilUser = this.config.ethHostUser
 
@@ -887,23 +904,8 @@ export class Devnet {
                 'UserKnownHostsFile=/dev/null',
                 '-i',
                 '~/cert.pem',
-                `${this.config.targetDirectory}/code/heimdall/build/heimdalld`,
+                `${this.config.targetDirectory}/code/heimdall-v2/build/heimdalld`,
                 `${this.config.devnetBorUsers[i]}@${this.config.devnetBorHosts[i]}:~/go/bin/heimdalld`
-              ],
-              { stdio: getRemoteStdio() }
-            )
-
-            await execa(
-              'scp',
-              [
-                '-o',
-                'StrictHostKeyChecking=no',
-                '-o',
-                'UserKnownHostsFile=/dev/null',
-                '-i',
-                '~/cert.pem',
-                `${this.config.targetDirectory}/code/heimdall/build/heimdallcli`,
-                `${this.config.devnetBorUsers[i]}@${this.config.devnetBorHosts[i]}:~/go/bin/heimdallcli`
               ],
               { stdio: getRemoteStdio() }
             )
@@ -1060,21 +1062,6 @@ export class Devnet {
                 '-i',
                 '~/cert.pem',
                 `${this.config.devnetBorUsers[i]}@${this.config.devnetBorHosts[i]}`,
-                'sudo cp ~/go/bin/heimdallcli /usr/bin/heimdallcli && sudo chmod +x /usr/bin/heimdallcli'
-              ],
-              { stdio: getRemoteStdio() }
-            )
-
-            await execa(
-              'ssh',
-              [
-                '-o',
-                'StrictHostKeyChecking=no',
-                '-o',
-                'UserKnownHostsFile=/dev/null',
-                '-i',
-                '~/cert.pem',
-                `${this.config.devnetBorUsers[i]}@${this.config.devnetBorHosts[i]}`,
                 'sudo systemctl start heimdalld.service'
               ],
               { stdio: getRemoteStdio() }
@@ -1131,23 +1118,8 @@ export class Devnet {
                 'UserKnownHostsFile=/dev/null',
                 '-i',
                 '~/cert.pem',
-                `${this.config.targetDirectory}/code/heimdall/build/heimdalld`,
+                `${this.config.targetDirectory}/code/heimdall-v2/build/heimdalld`,
                 `${this.config.devnetErigonUsers[i]}@${this.config.devnetErigonHosts[i]}:~/go/bin/heimdalld`
-              ],
-              { stdio: getRemoteStdio() }
-            )
-
-            await execa(
-              'scp',
-              [
-                '-o',
-                'StrictHostKeyChecking=no',
-                '-o',
-                'UserKnownHostsFile=/dev/null',
-                '-i',
-                '~/cert.pem',
-                `${this.config.targetDirectory}/code/heimdall/build/heimdallcli`,
-                `${this.config.devnetErigonUsers[i]}@${this.config.devnetErigonHosts[i]}:~/go/bin/heimdallcli`
               ],
               { stdio: getRemoteStdio() }
             )
@@ -1269,8 +1241,7 @@ export class Devnet {
                 '-i',
                 '~/cert.pem',
                 `${this.config.devnetBorUsers[i]}@${this.config.devnetBorHosts[i]}`,
-                'sudo cp ~/go/bin/heimdallcli /usr/bin/heimdallcli && sudo chmod +x /usr/bin/heimdallcli'
-              ],
+                'sudo cp ~/go/bin/bor /usr/bin/bor && sudo chmod +x /usr/bin/bor'],
               { stdio: getRemoteStdio() }
             )
 
@@ -1375,7 +1346,7 @@ export class Devnet {
               })
 
               await execa(`${heimdall.heimdalldCmd}`, [
-                'init', `--chain=${this.config.network}`, `--home=${this.heimdallDir(i)}`
+                'init', `--chain-id=${this.config.network}`, `--home=${this.heimdallDir(i)}`
               ], { stdio: getRemoteStdio(), cwd: this.config.targetDirectory })
             }
           }
@@ -1387,6 +1358,10 @@ export class Devnet {
                 return `${this.config.devnetHeimdallHosts[index]}:`
               })
               .replace(/moniker.+=.+/gi, `moniker = "heimdall${i}"`)
+              .replace(
+                /laddr[ ]*=[ ]*"tcp:\/\/127\.0\.0\.1:26657"/gi,
+                'laddr = "tcp://0.0.0.0:26657"'
+              )
               .save()
 
             if (this.config.network) {
@@ -1404,6 +1379,8 @@ export class Devnet {
                 /"bor_chain_id"[ ]*:[ ]*".*"/gi,
                 `"bor_chain_id": "${this.config.borChainId}"`
               )
+              .replace(/"voting_period"\s*:\s*".*"/g, '"voting_period": "60s"')
+              .replace(/"expedited_voting_period"\s*:\s*".*"/g, '"expedited_voting_period": "50s"')
               .save()
           }
         }
@@ -1462,9 +1439,18 @@ export class Devnet {
           .slice(0, this.config.numOfBorValidators)
           .map((s) => {
             const account = getAccountFromPrivateKey(s.priv_key)
-            const sanitizedPubKey = s.pub_key.startsWith('0x04')
-              ? '0x' + s.pub_key.slice(4)
-              : s.pub_key // Remove "04" prefix if present
+
+            // Extract key from the format 'PubKeySecp256k1{04...}'
+            const match = s.pub_key.match(/{(.*)}/)
+            let sanitizedPubKey = s.pub_key
+
+            if (match) {
+              const keyWithPrefix = match[1] // Extract the key inside braces
+              sanitizedPubKey = keyWithPrefix.startsWith('04')
+                ? '0x' + keyWithPrefix.slice(2) // Remove '04' and add '0x'
+                : '0x' + keyWithPrefix
+            }
+
             return { ...account, pub_key: sanitizedPubKey }
           })
 

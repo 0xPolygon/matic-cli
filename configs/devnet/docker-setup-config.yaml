@@ -1,14 +1,14 @@
 # Repositories
-borRepo: https://github.com/maticnetwork/bor.git
+borRepo: https://github.com/0xPolygon/bor.git
 borBranch: develop
 
-heimdallRepo: https://github.com/maticnetwork/heimdall.git
+heimdallRepo: https://github.com/0xPolygon/heimdall-v2.git
 heimdallBranch: develop
 
 contractsRepo: https://github.com/0xPolygon/pos-contracts.git
 contractsBranch: anvil-pos
 
-genesisContractsRepo: https://github.com/maticnetwork/genesis-contracts.git
+genesisContractsRepo: https://github.com/0xPolygon/genesis-contracts.git
 genesisContractsBranch: master
 
 # Defaults
@@ -21,24 +21,29 @@ ethURL: http://anvil:9545 # use localhost for local deployments
 ethHostUser: ubuntu
 
 # Misc
-mnemonic: "clock radar mass judge dismiss just intact mind resemble fringe diary casino" 
+mnemonic: 'clock radar mass judge dismiss just intact mind resemble fringe diary casino'
 
 # Heimdall
-heimdallChainId: heimdall-4052
-heimdallDockerBuildContext: https://github.com/maticnetwork/heimdall.git#develop
+heimdallChainId: heimdall-15005
+heimdallDockerBuildContext: https://github.com/0xPolygon/heimdall-v2.git#develop
 
 # Bor
 borChainId: 15005
-sprintSize: 64
-sprintSizeBlockNumber: 0
-blockNumber: '0'
+borDockerBuildContext: https://github.com/0xPolygon/bor.git#develop
+
 blockTime: '2'
+blockNumber: '0'
+
+sprintSize: '16'
+sprintSizeBlockNumber: '0'
+
+# Bor
 numOfBorValidators: 3
-numOfBorSentries: 0
+numOfBorSentries: 1
 numOfBorArchiveNodes: 0
-borDockerBuildContext: https://github.com/maticnetwork/bor.git#develop
-devnetBorUsers: ubuntu,ubuntu,ubuntu
-devnetBorFlags: config,config,config
+
+devnetBorUsers: ubuntu,ubuntu,ubuntu,ubuntu
+devnetBorFlags: config,config,config,config
 
 # Erigon
 numOfErigonValidators: 0

@@ -41,7 +41,7 @@ $ cat devnet/devnet/node0/bor/privatekey.txt
 After starting the chains and deploying contracts on the child chain, you can retrieve the contract addresses.
 
 ```bash
-$ cat devnet/code/contracts/contractAddresses.json
+$ cat devnet/code/pos-contracts/contractAddresses.json
 {
   "root": {
     "Registry": "0xB39aA4E9646Fd9C50ee8C871Fe345569C4D5D04A",
