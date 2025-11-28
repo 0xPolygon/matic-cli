@@ -1,6 +1,6 @@
 module go-loadbot
 
-go 1.24.0
+go 1.25.4
 
 require (
 	github.com/ethereum/go-ethereum v1.14.13
@@ -35,10 +35,7 @@ require (
 	golang.org/x/crypto v0.45.0 // indirect
 	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa // indirect
 	golang.org/x/sync v0.11.0 // indirect
-	golang.org/x/sys v0.30.0 // indirect
-	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/sys v0.38.0 // indirect
-	rsc.io/tmplfunc v0.0.3 // indirect
 )
 
 replace github.com/btcsuite/btcd/chaincfg/chainhash => github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1

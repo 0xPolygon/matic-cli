@@ -1,6 +1,6 @@
 module rpc-tests
 
-go 1.24.4
+go 1.25.4
 
 require (
 	github.com/ethereum/go-ethereum v1.15.0
