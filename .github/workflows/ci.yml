@@ -5,10 +5,8 @@ on:
       - 'master'
   pull_request:
     branches:
-      - '**'
+      - 'master'
     types: [opened, synchronize]
-  schedule:
-    - cron: '0 0 * * *'
 
 concurrency:
   group: build-${{ github.event.pull_request.number || github.ref }}
