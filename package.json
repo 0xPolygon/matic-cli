@@ -44,7 +44,7 @@
     "inquirer": "^6.2.2",
     "js-yaml": "^4.1.1",
     "listr2": "^4.0.5",
-    "lodash": "^4.17.21",
+    "lodash": "^4.17.23",
     "node-fetch": "^2.6.7",
     "nunjucks": "^3.2.1",
     "pkg-install": "^1.0.0",
