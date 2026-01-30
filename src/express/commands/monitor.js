@@ -59,6 +59,17 @@ async function checkCheckpoint(ip) {
   return 0
 }
 
+async function checkMilestoneCount(ip) {
+  const url = `http://${ip}:1317/milestones/count`
+  const response = await fetch(url)
+  const responseJson = await response.json()
+  if (responseJson.count) {
+    return responseJson.count
+  }
+
+  return 0
+}
+
 export async function checkLatestMilestone(ip) {
   const url = `http://${ip}:1317/milestones/latest`
   const response = await fetch(url)
@@ -136,7 +147,7 @@ export async function monitor(exitWhenDone) {
     process.exit(1)
   }
 
-  console.log('📍Checking for StateSyncs && Checkpoints')
+  console.log('📍Checking for Checkpoints, StateSyncs, and Milestones...')
 
   const src = `${doc.ethHostUser}@${machine0}:~/matic-cli/devnet/code/pos-contracts/contractAddresses.json`
   const dest = './contractAddresses.json'
@@ -173,6 +184,13 @@ export async function monitor(exitWhenDone) {
       console.log('📍Awaiting Checkpoint on Root chain 🚌')
     }
 
+    const milestoneCount = await checkMilestoneCount(machine0)
+    if (milestoneCount > 0) {
+      console.log('📍Milestone found on Heimdall ✅; Count:', milestoneCount)
+    } else {
+      console.log('📍Awaiting Milestone on Heimdall 🚌')
+    }
+
     const firstStateSyncTx = await checkStateSyncTx(machine0, 1)
     let stateSyncTxList
     let lastStateSyncTxID
@@ -204,6 +222,7 @@ export async function monitor(exitWhenDone) {
       exitWhenDone === true &&
       checkpointCount > 0 &&
       checkpointCountFromRootChain > 0 &&
+      milestoneCount > 0 &&
       lastStateSyncTxID > 0 &&
       lastStateIDFromBor > 0
     ) {
