@@ -17,7 +17,7 @@ require (
 	cosmossdk.io/math v1.4.0 // indirect
 	cosmossdk.io/store v1.1.1 // indirect
 	cosmossdk.io/x/tx v0.13.7 // indirect
-	filippo.io/edwards25519 v1.0.0 // indirect
+	filippo.io/edwards25519 v1.1.1 // indirect
 	github.com/0xPolygon/crand v1.0.3 // indirect
 	github.com/0xPolygon/heimdall-v2 v0.2.16-beta.0.20250806140653-d58ce649f932 // indirect
 	github.com/0xPolygon/polyproto v0.0.7 // indirect
