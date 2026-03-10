@@ -41,7 +41,7 @@ cat > heimdalld.service <<EOF
   Description=heimdalld
 [Service]
   WorkingDirectory=$NODE_DIR
-  ExecStart=$BIN_DIR/heimdalld start --home /var/lib/heimdall --bridge --all --rest-server
+  ExecStart=$BIN_DIR/heimdalld start --home /var/lib/heimdall --bridge --all --rest-server --log_no_color
   Type=simple
   User=$USER
 [Install]
